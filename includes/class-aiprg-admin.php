@@ -134,9 +134,12 @@ class AIPRG_Admin {
             $settings->render_custom_fields();
             $settings->render_generate_button();
             ?>
-            <p class="submit">
-                <input type="submit" name="save_settings" class="button-primary" value="<?php esc_attr_e('Save Settings', 'ai-product-review-generator'); ?>" />
-            </p>
+            <div style="margin-top: 20px; padding: 10px; background: #f0f8ff; border-left: 4px solid #0073aa;">
+                <p style="margin: 0; color: #555;">
+                    <span class="dashicons dashicons-info" style="color: #0073aa;"></span>
+                    <?php esc_html_e('Settings are automatically saved when you change them.', 'ai-product-review-generator'); ?>
+                </p>
+            </div>
         </form>
         <?php
     }
@@ -735,6 +738,7 @@ class AIPRG_Admin {
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('aiprg_generate_reviews'),
                 'validate_nonce' => wp_create_nonce('aiprg_validate_api_key'),
+                'auto_save_nonce' => wp_create_nonce('aiprg_auto_save_setting'),
                 'search_products_nonce' => $search_products_nonce,
                 'generating_text' => __('Generating reviews...', 'ai-product-review-generator'),
                 'success_text' => __('Reviews generated successfully!', 'ai-product-review-generator'),

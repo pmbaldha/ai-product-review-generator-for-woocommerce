@@ -1,5 +1,149 @@
 jQuery(document).ready(function($) {
     
+    // Auto-save functionality with debounce
+    var autoSaveTimer;
+    var savingFields = {};
+    
+    function showSaveMessage(fieldId, success = true) {
+        // Remove any existing message for this field
+        $('.aiprg-save-message[data-field="' + fieldId + '"]').remove();
+        
+        // Find the field element
+        var $field = $('#' + fieldId);
+        if ($field.length === 0) return;
+        
+        // Create and show the message
+        var messageHtml = '<span class="aiprg-save-message" data-field="' + fieldId + '" style="' +
+            'display: inline-block; margin-left: 10px; padding: 5px 10px; ' +
+            'background: ' + (success ? '#d4edda' : '#f8d7da') + '; ' +
+            'color: ' + (success ? '#155724' : '#721c24') + '; ' +
+            'border: 1px solid ' + (success ? '#c3e6cb' : '#f5c6cb') + '; ' +
+            'border-radius: 3px; font-size: 13px; opacity: 0; transition: opacity 0.3s;">' +
+            (success ? 'Setting saved.' : 'Failed to save.') +
+            '</span>';
+        
+        var $message = $(messageHtml);
+        
+        // Position the message appropriately
+        if ($field.is('select')) {
+            $field.next('.select2-container, .selectWoo-container').after($message);
+        } else if ($field.is('textarea')) {
+            $field.parent().append($message);
+        } else if ($field.is(':checkbox')) {
+            $field.parent().append($message);
+        } else {
+            $field.after($message);
+        }
+        
+        // Fade in the message
+        setTimeout(function() {
+            $message.css('opacity', '1');
+        }, 10);
+        
+        // Remove the message after 3 seconds
+        setTimeout(function() {
+            $message.css('opacity', '0');
+            setTimeout(function() {
+                $message.remove();
+            }, 300);
+        }, 3000);
+    }
+    
+    function autoSaveField(fieldId, value) {
+        // Don't save if already saving this field
+        if (savingFields[fieldId]) return;
+        
+        savingFields[fieldId] = true;
+        
+        $.post(aiprg_ajax.ajax_url, {
+            action: 'aiprg_auto_save_setting',
+            nonce: aiprg_ajax.auto_save_nonce || aiprg_ajax.nonce,
+            field_id: fieldId,
+            value: value
+        }, function(response) {
+            savingFields[fieldId] = false;
+            
+            if (response.success) {
+                showSaveMessage(fieldId, true);
+                // Mark settings as no longer changed since we auto-saved
+                settingsChanged = false;
+            } else {
+                showSaveMessage(fieldId, false);
+            }
+        }).fail(function() {
+            savingFields[fieldId] = false;
+            showSaveMessage(fieldId, false);
+        });
+    }
+    
+    // Attach auto-save to various field types
+    function attachAutoSave() {
+        // Text inputs and regular selects
+        $('#aiprg_openai_api_key, #aiprg_reviews_per_product, #aiprg_openai_engine, ' +
+          '#aiprg_review_length_mode, #aiprg_sentiment_balance, ' +
+          '#aiprg_date_range_start, #aiprg_date_range_end').on('change', function() {
+            var $field = $(this);
+            var fieldId = $field.attr('id');
+            var value = $field.val();
+            
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(function() {
+                autoSaveField(fieldId, value);
+            }, 500);
+        });
+        
+        // Textareas with debounced input
+        $('#aiprg_custom_prompt, #aiprg_custom_keywords').on('input', function() {
+            var $field = $(this);
+            var fieldId = $field.attr('id');
+            var value = $field.val();
+            
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(function() {
+                autoSaveField(fieldId, value);
+            }, 1000);
+        });
+        
+        // Checkbox
+        $('#aiprg_enable_logging').on('change', function() {
+            var $field = $(this);
+            var fieldId = $field.attr('id');
+            var value = $field.is(':checked');
+            
+            autoSaveField(fieldId, value);
+        });
+        
+        // Multi-select fields (products and categories)
+        $('#aiprg_select_products, #aiprg_select_categories').on('change', function() {
+            var $field = $(this);
+            var fieldId = $field.attr('id');
+            var value = $field.val() || [];
+            
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(function() {
+                autoSaveField(fieldId, value);
+            }, 500);
+        });
+        
+        // Review sentiment checkboxes
+        $('input[name="aiprg_review_sentiments[]"]').on('change', function() {
+            var values = [];
+            $('input[name="aiprg_review_sentiments[]"]:checked').each(function() {
+                values.push($(this).val());
+            });
+            
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(function() {
+                autoSaveField('aiprg_review_sentiments', values);
+            }, 500);
+        });
+    }
+    
+    // Initialize auto-save if we're on the settings tab
+    if ($('.aiprg-main').length > 0 && window.location.href.indexOf('tab=settings') > -1) {
+        attachAutoSave();
+    }
+    
     // Initialize WooCommerce product search
     if ($('.wc-product-search').length > 0) {
         // Make sure selectWoo is available

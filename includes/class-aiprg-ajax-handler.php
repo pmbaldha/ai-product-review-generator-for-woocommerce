@@ -16,6 +16,7 @@ class AIPRG_Ajax_Handler {
         add_action('wp_ajax_aiprg_get_generation_progress', array($this, 'handle_get_progress'));
         add_action('wp_ajax_aiprg_get_batch_status', array($this, 'handle_get_batch_status'));
         add_action('wp_ajax_aiprg_cancel_batch', array($this, 'handle_cancel_batch'));
+        add_action('wp_ajax_aiprg_auto_save_setting', array($this, 'handle_auto_save_setting'));
         
         $this->review_generator = new AIPRG_Review_Generator();
         $this->action_scheduler = new AIPRG_Action_Scheduler();
@@ -266,5 +267,64 @@ class AIPRG_Ajax_Handler {
                 'message' => __('Failed to cancel batch or batch is not currently processing.', 'ai-product-review-generator')
             ));
         }
+    }
+    
+    public function handle_auto_save_setting() {
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Unauthorized', 'ai-product-review-generator'));
+        }
+        
+        check_ajax_referer('aiprg_auto_save_setting', 'nonce');
+        
+        $field_id = isset($_POST['field_id']) ? sanitize_text_field($_POST['field_id']) : '';
+        $value = isset($_POST['value']) ? $_POST['value'] : '';
+        
+        if (empty($field_id)) {
+            wp_send_json_error(array(
+                'message' => __('Field ID is required.', 'ai-product-review-generator')
+            ));
+        }
+        
+        // Handle different field types
+        switch ($field_id) {
+            case 'aiprg_openai_api_key':
+            case 'aiprg_openai_engine':
+            case 'aiprg_review_length_mode':
+            case 'aiprg_sentiment_balance':
+                $value = sanitize_text_field($value);
+                break;
+            case 'aiprg_custom_prompt':
+            case 'aiprg_custom_keywords':
+                $value = sanitize_textarea_field($value);
+                break;
+            case 'aiprg_reviews_per_product':
+                $value = absint($value);
+                break;
+            case 'aiprg_enable_logging':
+                $value = ($value === 'true' || $value === '1') ? 'yes' : 'no';
+                break;
+            case 'aiprg_select_products':
+            case 'aiprg_select_categories':
+                $value = is_array($value) ? array_map('intval', $value) : array();
+                break;
+            case 'aiprg_date_range_start':
+            case 'aiprg_date_range_end':
+                $value = sanitize_text_field($value);
+                break;
+            case 'aiprg_review_sentiments':
+                $value = is_array($value) ? array_map('sanitize_text_field', $value) : array();
+                break;
+            default:
+                $value = sanitize_text_field($value);
+        }
+        
+        // Save the option
+        update_option($field_id, $value);
+        
+        wp_send_json_success(array(
+            'message' => __('Setting saved.', 'ai-product-review-generator'),
+            'field_id' => $field_id,
+            'value' => $value
+        ));
     }
 }
