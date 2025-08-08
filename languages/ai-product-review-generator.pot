@@ -1,0 +1,179 @@
+# Copyright (C) 2025 Orca WP
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: AI Product Review Generator for WooCommerce 1.0.1\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/ai-product-review-generator\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-01-01T00:00:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.5.0\n"
+"X-Domain: ai-product-review-generator\n"
+
+#: ai-product-review-generator.php:50
+msgid "AI Product Review Generator requires WooCommerce to be installed and activated."
+msgstr ""
+
+#: ai-product-review-generator.php:58
+msgid "AI Product Review Generator requires WooCommerce version 9.3 or higher."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:17
+msgid "AI Product Reviews"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:32
+msgid "AI Product Reviews Settings"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:34
+msgid "Configure the settings for generating AI product reviews below."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:38
+msgid "OpenAI API Key"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:40
+msgid "Enter your OpenAI API key. You can obtain your API key from OpenAI's platform."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:42
+msgid "Your OpenAI API Key"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:45
+msgid "OpenAI Engine"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:47
+msgid "Select the OpenAI engine to use for generating reviews."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:58
+msgid "Temperature"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:60
+msgid "Controls creativity (0.0-1.0). Higher values yield more varied content."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:71
+msgid "Number of Reviews per Product"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:73
+msgid "Specify how many reviews to generate for each product."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:83
+msgid "Custom Review Prompt"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:85
+msgid "Enter a custom review prompt. Use {product_title}, {product_description}, {product_price} as placeholders."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:87
+msgid "Write a realistic product review for {product_title}..."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:91
+msgid "Review Length Mode"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:93
+msgid "Choose the length of the reviews."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:105
+msgid "Review Sentiment Balance"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:107
+msgid "Balance of sentiment distribution in generated reviews."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:118
+msgid "Custom Keywords / Focus Areas"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:120
+msgid "Enter keywords or focus areas to guide the AI (comma-separated)."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:142
+msgid "Select Products"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:161
+msgid "Search for products..."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:163
+msgid "Manually select specific products for review generation."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:168
+msgid "Select Product Category"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:173
+msgid "-- Select a Category --"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:182
+msgid "Choose a product category to generate reviews for all products within that category."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:187
+msgid "Review Date Range"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:192
+msgid "to"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:194
+msgid "Define a date range for the review timestamps."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:199
+msgid "Review Sentiments"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:206
+msgid "Negative (2-3 stars)"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:207
+msgid "Neutral (3-4 stars)"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:208
+msgid "Positive (4-5 stars)"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:209
+msgid "Select the sentiments the AI should reflect in the reviews."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:221
+msgid "Generate AI Product Reviews"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:271
+msgid "Generating reviews..."
+msgstr ""
+
+#: includes/class-aiprg-settings.php:272
+msgid "Reviews generated successfully!"
+msgstr ""
+
+#: includes/class-aiprg-settings.php:273
+msgid "An error occurred while generating reviews."
+msgstr ""
