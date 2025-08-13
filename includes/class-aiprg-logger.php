@@ -24,10 +24,17 @@ class AIPRG_Logger {
             if (!file_exists($htaccess_file)) {
                 file_put_contents($htaccess_file, 'Deny from all');
             }
+            
+            // Add index.php for extra security
+            $index_file = $log_dir . '/index.php';
+            if (!file_exists($index_file)) {
+                file_put_contents($index_file, '<?php // Silence is golden');
+            }
         }
         
         // Generate unique hash for the log file
         $hash = substr(md5(time() . wp_rand()), 0, 20);
+        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
         $this->log_file = $log_dir . '/debug-' . $hash . '-' . date('Y-m-d') . '.log';
         
         // Ensure the option exists with default value
@@ -70,6 +77,7 @@ class AIPRG_Logger {
         
         $log_entry .= PHP_EOL . str_repeat('-', 80) . PHP_EOL;
         
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Required for logging to custom file
         error_log($log_entry, 3, $this->log_file);
     }
     
@@ -110,6 +118,7 @@ class AIPRG_Logger {
         // Always log errors, even if logging is disabled
         $context = array(
             'error_data' => $error_data,
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace -- Required for error context logging
             'backtrace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5)
         );
         
@@ -167,6 +176,7 @@ class AIPRG_Logger {
     private function rotate_log() {
         if (file_exists($this->log_file) && filesize($this->log_file) > $this->max_log_size) {
             $archive_file = str_replace('.log', '-' . time() . '.log', $this->log_file);
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Direct file operation needed for log rotation
             rename($this->log_file, $archive_file);
             
             // Clean up old logs (keep only last 10 files)
@@ -176,7 +186,11 @@ class AIPRG_Logger {
     
     private function cleanup_old_logs() {
         $log_dir = dirname($this->log_file);
-        $files = glob($log_dir . '/debug-*.log');
+        // Match both old format (debug-*) and new format (aiprg-debug-*)
+        $files = array_merge(
+            glob($log_dir . '/debug-*.log'),
+            glob($log_dir . '/aiprg-debug-*.log')
+        );
         
         if (count($files) > 10) {
             // Sort by modification time
@@ -187,17 +201,45 @@ class AIPRG_Logger {
             // Remove oldest files
             $files_to_remove = array_slice($files, 0, count($files) - 10);
             foreach ($files_to_remove as $file) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- Direct file operation needed for log cleanup
                 unlink($file);
             }
         }
     }
     
     public function get_recent_logs($lines = 100) {
+        // First try the current log file
         if (!file_exists($this->log_file)) {
+            // If current log file doesn't exist, try to find today's logs from any file
+            $log_dir = dirname($this->log_file);
+            // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
+            $today = date('Y-m-d');
+            
+            // Look for any log file from today (old or new format)
+            $possible_files = array_merge(
+                glob($log_dir . '/debug-*' . $today . '.log'),
+                glob($log_dir . '/aiprg-debug-' . $today . '.log')
+            );
+            
+            if (empty($possible_files)) {
+                return array();
+            }
+            
+            // Use the most recent file
+            usort($possible_files, function($a, $b) {
+                return filemtime($b) - filemtime($a);
+            });
+            
+            $log_file_to_read = $possible_files[0];
+        } else {
+            $log_file_to_read = $this->log_file;
+        }
+        
+        if (!file_exists($log_file_to_read)) {
             return array();
         }
         
-        $file = new SplFileObject($this->log_file, 'r');
+        $file = new SplFileObject($log_file_to_read, 'r');
         $file->seek(PHP_INT_MAX);
         $total_lines = $file->key();
         
@@ -215,9 +257,14 @@ class AIPRG_Logger {
     
     public function clear_logs() {
         $log_dir = dirname($this->log_file);
-        $files = glob($log_dir . '/debug-*.log');
+        // Clear both old format (debug-*) and new format (aiprg-debug-*)
+        $files = array_merge(
+            glob($log_dir . '/debug-*.log'),
+            glob($log_dir . '/aiprg-debug-*.log')
+        );
         
         foreach ($files as $file) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- Direct file operation needed for log cleanup
             unlink($file);
         }
         
@@ -233,5 +280,71 @@ class AIPRG_Logger {
             return filesize($this->log_file);
         }
         return 0;
+    }
+    
+    /**
+     * Get all logs from today, combining multiple log files if they exist
+     * 
+     * @param int $lines Maximum number of lines to return
+     * @return array Combined log entries
+     */
+    public function get_all_recent_logs($lines = 500) {
+        $log_dir = dirname($this->log_file);
+        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
+        $today = date('Y-m-d');
+        $all_logs = array();
+        
+        // Find all log files from today (both old and new format)
+        $log_files = array_merge(
+            glob($log_dir . '/debug-*' . $today . '.log'),
+            glob($log_dir . '/aiprg-debug-' . $today . '.log')
+        );
+        
+        // Sort files by modification time (newest first)
+        usort($log_files, function($a, $b) {
+            return filemtime($b) - filemtime($a);
+        });
+        
+        // Read logs from each file
+        foreach ($log_files as $log_file) {
+            if (file_exists($log_file)) {
+                $file_content = file_get_contents($log_file);
+                if (!empty($file_content)) {
+                    $file_lines = explode(PHP_EOL, $file_content);
+                    $all_logs = array_merge($all_logs, $file_lines);
+                }
+            }
+        }
+        
+        // Return the most recent lines
+        if (count($all_logs) > $lines) {
+            return array_slice($all_logs, -$lines);
+        }
+        
+        return $all_logs;
+    }
+    
+    /**
+     * Get total size of all log files
+     * 
+     * @return int Total size in bytes
+     */
+    public function get_total_log_size() {
+        $log_dir = dirname($this->log_file);
+        $total_size = 0;
+        
+        // Get all log files
+        $log_files = array_merge(
+            glob($log_dir . '/debug-*.log'),
+            glob($log_dir . '/aiprg-debug-*.log')
+        );
+        
+        foreach ($log_files as $log_file) {
+            if (file_exists($log_file)) {
+                $total_size += filesize($log_file);
+            }
+        }
+        
+        return $total_size;
     }
 }

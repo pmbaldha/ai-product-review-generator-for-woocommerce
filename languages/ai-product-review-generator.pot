@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Orca WP
+# Copyright (C) 2025 Prashant Baldha
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""

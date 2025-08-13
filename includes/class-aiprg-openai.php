@@ -21,7 +21,7 @@ class AIPRG_OpenAI {
     public function generate_review($product, $options = array()) {
         if (empty($this->api_key)) {
             $this->logger->log_error('API key missing for review generation');
-            return new WP_Error('api_key_missing', __('OpenAI API key is not configured.', 'ai-product-review-generator'));
+            return new WP_Error('api_key_missing', __('OpenAI API key is not configured.', 'ai-product-review-generator-for-woocommerce'));
         }
         
         $product_name = $product->get_name();
@@ -33,18 +33,11 @@ class AIPRG_OpenAI {
         // Using completions-style format with system instruction in prompt
         $system_instruction = 'Write an authentic product review that sounds natural and human-like. Avoid overly promotional language.';
         $user_prompt = $this->build_prompt($product, $options);
-        $full_prompt = $system_instruction . "\n\n" . $user_prompt . "\n\nReview:";
+        $full_prompt = $system_instruction . "\n\n" . $user_prompt . "\n\nDon't add ⭐, * and — in response. \n\nReview:";
         
         $request_body = array(
             'model' => $this->get_model_name(),
             'input' => $full_prompt,
-            // 'max_tokens' => $this->get_max_tokens($options['length'] ?? 'medium'),
-            // 'top_p' => 1,
-            // 'frequency_penalty' => 0.5,
-            // 'presence_penalty' => 0.3,
-            // 'n' => 1,
-            // 'echo' => false,
-            // 'stop' => array("\n\n\n", "END")
         );
         
         $endpoint = rtrim($this->api_base_url, '/') . '/responses';
@@ -87,14 +80,14 @@ class AIPRG_OpenAI {
                 'raw_body' => substr($body, 0, 500),
                 'status_code' => $status_code
             ));
-            return new WP_Error('json_error', __('Failed to decode API response.', 'ai-product-review-generator'));
+            return new WP_Error('json_error', __('Failed to decode API response.', 'ai-product-review-generator-for-woocommerce'));
         }
         
         // Log API response
         $this->logger->log_api_response($data, $status_code);
         
         if (isset($data['error'])) {
-            $error_msg = $data['error']['message'] ?? __('OpenAI API error occurred.', 'ai-product-review-generator');
+            $error_msg = $data['error']['message'] ?? __('OpenAI API error occurred.', 'ai-product-review-generator-for-woocommerce');
             $error_type = $data['error']['type'] ?? 'unknown';
             $error_code = $data['error']['code'] ?? 'unknown';
             
@@ -108,12 +101,13 @@ class AIPRG_OpenAI {
         }
         
         if (!isset($data['output']) || !isset($data['output'][0]['content'][0]['text'])) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log, WordPress.PHP.DevelopmentFunctions.error_log_print_r -- Debug logging for API response issues
 			error_log(print_r($data, true));;
             $this->logger->log_error('Invalid OpenAI API response structure', array(
                 'product_id' => $product_id,
                 'response_data' => $data
             ));
-            return new WP_Error('invalid_response', __('Invalid response from OpenAI API.', 'ai-product-review-generator'));
+            return new WP_Error('invalid_response', __('Invalid response from OpenAI API.', 'ai-product-review-generator-for-woocommerce'));
         }
         
         $review_content = trim($data['output'][0]['content'][0]['text']);
@@ -190,25 +184,18 @@ class AIPRG_OpenAI {
     }
     
     private function get_model_name() {
-        // Custom /responses endpoint - using gpt-3.5-turbo-instruct format
         // All models map to gpt-3.5-turbo-instruct for compatibility
         $model_map = array(
-            'gpt-4o-mini' => 'gpt-3.5-turbo-instruct',
-            'gpt-3.5-turbo' => 'gpt-3.5-turbo-instruct', 
-            'gpt-4' => 'gpt-3.5-turbo-instruct',
-            'gpt-4-turbo' => 'gpt-3.5-turbo-instruct',
-            'chatgpt-4o-latest' => 'gpt-3.5-turbo-instruct'
+            'gpt-4o-mini' => 'gpt-4o-mini',
+            'gpt-3.5-turbo' => 'gpt-3.5-turbo',
+            'gpt-4' => 'gpt-4',
+            'gpt-4-turbo' => 'gpt-4-turbo',
+            'chatgpt-4o-latest' => 'chatgpt-4o-latest'
         );
         
         $model = $model_map[$this->engine] ?? 'gpt-4o-mini';
-        $model = 'gpt-4o-mini';
 
         $this->logger->log("Using custom /responses endpoint with model: {$model}", 'INFO');
-        if ($this->engine !== 'gpt-3.5-turbo') {
-            $this->logger->log("Note: {$this->engine} mapped to gpt-3.5-turbo-instruct for compatibility", 'INFO');
-        }
-
-
         return $model;
     }
     
@@ -227,7 +214,7 @@ class AIPRG_OpenAI {
         
         $response = wp_remote_get($endpoint, array(
             'headers' => $headers,
-            'timeout' => 10
+            'timeout' => 30
         ));
         
         if (is_wp_error($response)) {

@@ -22,17 +22,17 @@ class AIPRG_Settings {
     public function get_settings() {
         $settings = array(
             'section_title' => array(
-                'name' => __('AI Product Reviews Settings', 'ai-product-review-generator'),
+                'name' => __('AI Product Reviews Settings', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'title',
-                'desc' => __('Configure the settings for generating AI product reviews below.', 'ai-product-review-generator'),
+                'desc' => __('Configure the settings for generating AI product reviews below.', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_section_title'
             ),
             'openai_api_key' => array(
-                'name' => __('OpenAI API Key', 'ai-product-review-generator'),
+                'name' => __('OpenAI API Key', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'text',
-                'desc' => __('Enter your OpenAI API key. You can obtain your API key from OpenAI\'s platform.', 'ai-product-review-generator') . '<br><button type="button" id="aiprg-validate-api-key" class="button button-secondary" style="margin-top: 10px;">' . __('Validate API Key', 'ai-product-review-generator') . '</button><span id="aiprg-validation-result" style="margin-left: 10px;"></span>',
+                'desc' => __('Enter your OpenAI API key. You can obtain your API key from OpenAI\'s platform.', 'ai-product-review-generator-for-woocommerce') . '<br><button type="button" id="aiprg-validate-api-key" class="button button-secondary" style="margin-top: 10px;">' . __('Validate API Key', 'ai-product-review-generator-for-woocommerce') . '</button><span id="aiprg-validation-result" style="margin-left: 10px;"></span>',
                 'id'   => 'aiprg_openai_api_key',
-                'placeholder' => __('sk-...', 'ai-product-review-generator'),
+                'placeholder' => __('sk-...', 'ai-product-review-generator-for-woocommerce'),
                 'css' => 'width: 500px; max-width: 100%; font-family: monospace;',
                 'custom_attributes' => array(
                     'autocomplete' => 'off',
@@ -40,24 +40,28 @@ class AIPRG_Settings {
                 )
             ),
             'openai_engine' => array(
-                'name' => __('OpenAI Model', 'ai-product-review-generator'),
+                'name' => esc_html__('OpenAI Model', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'select',
-                'desc' => __('Using custom /responses endpoint - All models use gpt-3.5-turbo-instruct format.', 'ai-product-review-generator'),
+                'desc' => esc_html__('Using custom /responses endpoint - All models use gpt-3.5-turbo-instruct format.', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_openai_engine',
                 'options' => array(
-                    'gpt-4o-mini' => __('GPT-4o Mini (Maps to GPT-3.5 Turbo Instruct)', 'ai-product-review-generator'),
-                    'gpt-3.5-turbo' => __('GPT-3.5 Turbo Instruct (Recommended)', 'ai-product-review-generator'),
-                    'gpt-4-turbo' => __('GPT-4 Turbo (Maps to GPT-3.5 Turbo Instruct)', 'ai-product-review-generator'),
-                    'gpt-4' => __('GPT-4 (Maps to GPT-3.5 Turbo Instruct)', 'ai-product-review-generator')
+                    'gpt-4o-mini' => esc_html__('GPT-4o Mini (Recommended)', 'ai-product-review-generator-for-woocommerce'),
+                    'gpt-3.5-turbo' => esc_html__('GPT-3.5 Turbo Instruct', 'ai-product-review-generator-for-woocommerce'),
+                    'gpt-4-turbo' => esc_html__('GPT-4 Turbo', 'ai-product-review-generator-for-woocommerce'),
+                    'gpt-4o' => esc_html__('GPT-4o', 'ai-product-review-generator-for-woocommerce'),
+                    'gpt-4.1' => esc_html__('GPT 4.1', 'ai-product-review-generator-for-woocommerce'),
+                    'GPT-5' => esc_html__('GPT 5', 'ai-product-review-generator-for-woocommerce'),
+                    'GPT-5-mini' => esc_html__('GPT-5 Mini', 'ai-product-review-generator-for-woocommerce'),
+                    'GPT-5-nano' => esc_html__('GPT-5 Nano', 'ai-product-review-generator-for-woocommerce'),
                 ),
-                'default' => 'gpt-3.5-turbo'
+                'default' => 'gpt-4o-mini'
             ),
             'reviews_per_product' => array(
-                'name' => __('Number of Reviews per Product', 'ai-product-review-generator'),
+                'name' => __('Number of Reviews per Product', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'number',
-                'desc' => __('Specify how many reviews to generate for each product.', 'ai-product-review-generator'),
+                'desc' => __('Specify how many reviews to generate for each product.', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_reviews_per_product',
-                'placeholder' => __('5', 'ai-product-review-generator'),
+                'placeholder' => __('5', 'ai-product-review-generator-for-woocommerce'),
                 'default' => '5',
                 'custom_attributes' => array(
                     'min'  => '1',
@@ -65,7 +69,7 @@ class AIPRG_Settings {
                 )
             ),
             'custom_prompt' => array(
-                'name' => __('Custom Review Prompt', 'ai-product-review-generator'),
+                'name' => esc_html__('Custom Review Prompt', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'textarea',
                 'desc' => __('<div class="aiprg-prompt-help">
                     <strong>Available placeholders:</strong>
@@ -77,9 +81,9 @@ class AIPRG_Settings {
                     <div class="aiprg-char-counter" style="margin-top: 5px; color: #666;">
                         <span id="aiprg-prompt-char-count">0</span> / 500 characters
                     </div>
-                </div>', 'ai-product-review-generator'),
+                </div>', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_custom_prompt',
-                'placeholder' => __('Write a realistic and authentic product review for {product_title}. The product is priced at {product_price}. Consider the following description: {product_description}', 'ai-product-review-generator'),
+                'placeholder' => esc_html__('Write a realistic and authentic product review for {product_title}. The product is priced at {product_price}. Consider the following description: {product_description}', 'ai-product-review-generator-for-woocommerce'),
                 'css' => 'width:100%; height: 120px; font-family: monospace; padding: 10px; border: 1px solid #ddd; border-radius: 4px;',
                 'custom_attributes' => array(
                     'maxlength' => '500',
@@ -87,33 +91,33 @@ class AIPRG_Settings {
                 )
             ),
             'review_length_mode' => array(
-                'name' => __('Review Length Mode', 'ai-product-review-generator'),
+                'name' => esc_html__('Review Length Mode', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'select',
-                'desc' => __('Choose the length of the reviews.', 'ai-product-review-generator'),
+                'desc' => esc_html__('Choose the length of the reviews.', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_review_length_mode',
                 'options' => array(
-                    'short' => __('Short (50-100 words)', 'ai-product-review-generator'),
-                    'medium' => __('Medium (100-200 words)', 'ai-product-review-generator'),
-                    'long' => __('Long (200-300 words)', 'ai-product-review-generator'),
-                    'mixed' => __('Mixed (Random length)', 'ai-product-review-generator')
+                    'short' => esc_html__('Short (50-100 words)', 'ai-product-review-generator-for-woocommerce'),
+                    'medium' => esc_html__('Medium (100-200 words)', 'ai-product-review-generator-for-woocommerce'),
+                    'long' => esc_html__('Long (200-300 words)', 'ai-product-review-generator-for-woocommerce'),
+                    'mixed' => esc_html__('Mixed (Random length)', 'ai-product-review-generator-for-woocommerce')
                 ),
                 'default' => 'mixed'
             ),
             'sentiment_balance' => array(
-                'name' => __('Review Sentiment Balance', 'ai-product-review-generator'),
+                'name' => esc_html__('Review Sentiment Balance', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'select',
-                'desc' => __('Balance of sentiment distribution in generated reviews.', 'ai-product-review-generator'),
+                'desc' => esc_html__('Balance of sentiment distribution in generated reviews.', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_sentiment_balance',
                 'options' => array(
-                    'balanced' => __('Balanced (Equal distribution)', 'ai-product-review-generator'),
-                    'mostly_positive' => __('Mostly Positive (70% positive)', 'ai-product-review-generator'),
-                    'overwhelmingly_positive' => __('Overwhelmingly Positive (90% positive)', 'ai-product-review-generator'),
-                    'realistic' => __('Realistic (60% positive, 30% neutral, 10% negative)', 'ai-product-review-generator')
+                    'balanced' => esc_html__('Balanced (Equal distribution)', 'ai-product-review-generator-for-woocommerce'),
+                    'mostly_positive' => esc_html__('Mostly Positive (70% positive)', 'ai-product-review-generator-for-woocommerce'),
+                    'overwhelmingly_positive' => esc_html__('Overwhelmingly Positive (90% positive)', 'ai-product-review-generator-for-woocommerce'),
+                    'realistic' => esc_html__('Realistic (60% positive, 30% neutral, 10% negative)', 'ai-product-review-generator-for-woocommerce')
                 ),
                 'default' => 'balanced'
             ),
             'custom_keywords' => array(
-                'name' => __('Custom Keywords / Focus Areas', 'ai-product-review-generator'),
+                'name' => esc_html__('Custom Keywords / Focus Areas', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'textarea',
                 'desc' => __('<div class="aiprg-keywords-help">
                     <span style="color: #666;">Enter keywords or aspects for the AI to focus on (comma-separated)</span>
@@ -123,15 +127,15 @@ class AIPRG_Settings {
                         <span class="aiprg-tag-example" style="display: inline-block; padding: 2px 8px; background: #f0f0f1; border-radius: 3px; margin-right: 5px; font-size: 12px;">value</span>
                         <span class="aiprg-tag-example" style="display: inline-block; padding: 2px 8px; background: #f0f0f1; border-radius: 3px; margin-right: 5px; font-size: 12px;">shipping</span>
                     </div>
-                </div>', 'ai-product-review-generator'),
+                </div>', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_custom_keywords',
-                'placeholder' => __('quality, customer service, packaging, value for money, durability, ease of use', 'ai-product-review-generator'),
+                'placeholder' => esc_html__('quality, customer service, packaging, value for money, durability, ease of use', 'ai-product-review-generator-for-woocommerce'),
                 'css' => 'width:100%; height: 80px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;'
             ),
             'enable_logging' => array(
-                'name' => __('Enable Debug Logging', 'ai-product-review-generator'),
+                'name' => esc_html__('Enable Debug Logging', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'checkbox',
-                'desc' => __('Check to enable detailed logging for debugging purposes. Logs are stored in wp-content/uploads/aiprg-logs/', 'ai-product-review-generator'),
+                'desc' => esc_html__('Check to enable detailed logging for debugging purposes. Logs are stored in wp-content/uploads/aiprg-logs/', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_enable_logging',
                 'default' => 'yes',
                 'desc_tip' => true
@@ -151,10 +155,10 @@ class AIPRG_Settings {
             <tbody>
                 <tr valign="top">
                     <th scope="row" class="titledesc">
-                        <label for="aiprg_select_products"><?php esc_html_e('Select Products', 'ai-product-review-generator'); ?></label>
+                        <label for="aiprg_select_products"><?php esc_html_e('Select Products', 'ai-product-review-generator-for-woocommerce'); ?></label>
                     </th>
                     <td class="forminp">
-                        <select class="wc-product-search" multiple="multiple" style="width: 50%;" id="aiprg_select_products" name="aiprg_select_products[]" data-placeholder="<?php esc_attr_e('Search for products...', 'ai-product-review-generator'); ?>">
+                        <select class="wc-product-search" multiple="multiple" style="width: 50%;" id="aiprg_select_products" name="aiprg_select_products[]" data-placeholder="<?php esc_attr_e('Search for products...', 'ai-product-review-generator-for-woocommerce'); ?>">
                             <?php
                             $product_ids = get_option('aiprg_select_products', array());
                             if (!empty($product_ids)) {
@@ -167,53 +171,62 @@ class AIPRG_Settings {
                             }
                             ?>
                         </select>
-                        <p class="description"><?php esc_html_e('Manually select specific products for review generation.', 'ai-product-review-generator'); ?></p>
+                        <p class="description"><?php esc_html_e('Manually select specific products for review generation.', 'ai-product-review-generator-for-woocommerce'); ?></p>
                     </td>
                 </tr>
                 <tr valign="top">
                     <th scope="row" class="titledesc">
-                        <label for="aiprg_select_categories"><?php esc_html_e('Select Product Categories', 'ai-product-review-generator'); ?></label>
+                        <label for="aiprg_select_categories"><?php esc_html_e('Select Product Categories', 'ai-product-review-generator-for-woocommerce'); ?></label>
                     </th>
                     <td class="forminp">
-                        <select id="aiprg_select_categories" name="aiprg_select_categories[]" class="wc-category-search" multiple="multiple" style="width: 50%;" data-placeholder="<?php esc_attr_e('Search for categories...', 'ai-product-review-generator'); ?>">
+                        <select id="aiprg_select_categories" name="aiprg_select_categories[]" class="wc-category-search" multiple="multiple" style="width: 50%;" data-placeholder="<?php esc_attr_e('Search for categories...', 'ai-product-review-generator-for-woocommerce'); ?>">
                             <?php
-                            $categories = get_terms('product_cat', array('hide_empty' => false));
+                            // Only load already selected categories for initial display
                             $selected_categories = get_option('aiprg_select_categories', array());
                             if (!is_array($selected_categories)) {
                                 $selected_categories = array($selected_categories);
                             }
-                            foreach ($categories as $category) {
-                                $selected = in_array($category->term_id, $selected_categories) ? 'selected="selected"' : '';
-                                echo '<option value="' . esc_attr($category->term_id) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
+                            
+                            if (!empty($selected_categories)) {
+                                foreach ($selected_categories as $cat_id) {
+                                    $category = get_term($cat_id, 'product_cat');
+                                    if ($category && !is_wp_error($category)) {
+                                        $formatted_name = $category->name;
+                                        if ($category->count > 0) {
+                                            $formatted_name .= ' (' . $category->count . ' products)';
+                                        }
+                                        echo '<option value="' . esc_attr($cat_id) . '" selected="selected">' . esc_html($formatted_name) . '</option>';
+                                    }
+                                }
                             }
                             ?>
                         </select>
-                        <p class="description"><?php esc_html_e('Choose product categories to generate reviews for all products within those categories. You can select multiple categories.', 'ai-product-review-generator'); ?></p>
+                        <p class="description"><?php esc_html_e('Choose product categories to generate reviews for all products within those categories. Start typing to search for categories.', 'ai-product-review-generator-for-woocommerce'); ?></p>
                     </td>
                 </tr>
                 <tr valign="top">
                     <th scope="row" class="titledesc">
-                        <label for="aiprg_date_range"><?php esc_html_e('Review Date Range', 'ai-product-review-generator'); ?></label>
+                        <label for="aiprg_date_range"><?php esc_html_e('Review Date Range', 'ai-product-review-generator-for-woocommerce'); ?></label>
                     </th>
                     <td class="forminp">
-                        <input type="date" id="aiprg_date_range_start" name="aiprg_date_range_start" value="<?php echo esc_attr(get_option('aiprg_date_range_start', date('Y-m-d', strtotime('-30 days')))); ?>" />
-                        <span> <?php esc_html_e('to', 'ai-product-review-generator'); ?> </span>
-                        <input type="date" id="aiprg_date_range_end" name="aiprg_date_range_end" value="<?php echo esc_attr(get_option('aiprg_date_range_end', date('Y-m-d'))); ?>" />
-                        <p class="description"><?php esc_html_e('Define a date range for the review timestamps.', 'ai-product-review-generator'); ?></p>
+                        <input type="date" id="aiprg_date_range_start" name="aiprg_date_range_start" value="<?php echo esc_attr(get_option('aiprg_date_range_start', gmdate('Y-m-d', strtotime('-30 days')))); ?>" />
+                        <span> <?php esc_html_e('to', 'ai-product-review-generator-for-woocommerce'); ?> </span>
+                        <input type="date" id="aiprg_date_range_end" name="aiprg_date_range_end" value="<?php echo esc_attr(get_option('aiprg_date_range_end', current_time('Y-m-d'))); ?>" />
+                        <p class="description"><?php esc_html_e('Define a date range for the review timestamps.', 'ai-product-review-generator-for-woocommerce'); ?></p>
                     </td>
                 </tr>
                 <tr valign="top">
                     <th scope="row" class="titledesc">
-                        <label for="aiprg_review_sentiments"><?php esc_html_e('Review Sentiments', 'ai-product-review-generator'); ?></label>
+                        <label for="aiprg_review_sentiments"><?php esc_html_e('Review Sentiments', 'ai-product-review-generator-for-woocommerce'); ?></label>
                     </th>
                     <td class="forminp">
                         <?php
                         $sentiments = get_option('aiprg_review_sentiments', array('positive'));
                         ?>
-                        <label><input type="checkbox" name="aiprg_review_sentiments[]" value="negative" <?php checked(in_array('negative', $sentiments)); ?> /> <?php esc_html_e('Negative (2-3 stars)', 'ai-product-review-generator'); ?></label><br>
-                        <label><input type="checkbox" name="aiprg_review_sentiments[]" value="neutral" <?php checked(in_array('neutral', $sentiments)); ?> /> <?php esc_html_e('Neutral (3-4 stars)', 'ai-product-review-generator'); ?></label><br>
-                        <label><input type="checkbox" name="aiprg_review_sentiments[]" value="positive" <?php checked(in_array('positive', $sentiments)); ?> /> <?php esc_html_e('Positive (4-5 stars)', 'ai-product-review-generator'); ?></label>
-                        <p class="description"><?php esc_html_e('Select the sentiments the AI should reflect in the reviews.', 'ai-product-review-generator'); ?></p>
+                        <label><input type="checkbox" name="aiprg_review_sentiments[]" value="positive" <?php checked(in_array('positive', $sentiments)); ?> /> <?php esc_html_e('Positive (4-5 stars)', 'ai-product-review-generator-for-woocommerce'); ?></label><br>
+                        <label><input type="checkbox" name="aiprg_review_sentiments[]" value="neutral" <?php checked(in_array('neutral', $sentiments)); ?> /> <?php esc_html_e('Neutral (3-4 stars)', 'ai-product-review-generator-for-woocommerce'); ?></label><br>
+                        <label><input type="checkbox" name="aiprg_review_sentiments[]" value="negative" <?php checked(in_array('negative', $sentiments)); ?> /> <?php esc_html_e('Negative (2-3 stars)', 'ai-product-review-generator-for-woocommerce'); ?></label>
+                        <p class="description"><?php esc_html_e('Select the sentiments the AI should reflect in the reviews.', 'ai-product-review-generator-for-woocommerce'); ?></p>
                     </td>
                 </tr>
             </tbody>
@@ -224,10 +237,9 @@ class AIPRG_Settings {
     public function render_generate_button() {
         ?>
         <div class="aiprg-generate-section">
-            <hr />
             <p class="submit">
                 <button type="button" id="aiprg_generate_reviews" class="button-primary">
-                    <?php esc_html_e('Generate AI Product Reviews', 'ai-product-review-generator'); ?>
+                    <?php esc_html_e('Generate AI Product Reviews', 'ai-product-review-generator-for-woocommerce'); ?>
                 </button>
                 <span class="spinner" style="float: none; margin-top: 0;"></span>
             </p>
@@ -243,31 +255,41 @@ class AIPRG_Settings {
     }
     
     public function save_custom_fields() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled by WooCommerce settings framework
         if (isset($_POST['aiprg_select_products'])) {
-            update_option('aiprg_select_products', array_map('intval', $_POST['aiprg_select_products']));
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.NonceVerification.Missing -- Array values are integers, nonce handled by WooCommerce
+            update_option('aiprg_select_products', array_map('intval', $_POST['aiprg_select_products']), false);
         } else {
-            update_option('aiprg_select_products', array());
+            update_option('aiprg_select_products', array(), false);
         }
         
         // Save selected categories (now multi-select)
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled by WooCommerce settings framework
         if (isset($_POST['aiprg_select_categories'])) {
-            update_option('aiprg_select_categories', array_map('intval', $_POST['aiprg_select_categories']));
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.NonceVerification.Missing -- Array values are integers, nonce handled by WooCommerce
+            update_option('aiprg_select_categories', array_map('intval', $_POST['aiprg_select_categories']), false);
         } else {
-            update_option('aiprg_select_categories', array());
+            update_option('aiprg_select_categories', array(), false);
         }
         
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled by WooCommerce settings framework
         if (isset($_POST['aiprg_date_range_start'])) {
-            update_option('aiprg_date_range_start', sanitize_text_field($_POST['aiprg_date_range_start']));
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce handled by WooCommerce
+            update_option('aiprg_date_range_start', sanitize_text_field(wp_unslash($_POST['aiprg_date_range_start'])), false);
         }
         
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled by WooCommerce settings framework
         if (isset($_POST['aiprg_date_range_end'])) {
-            update_option('aiprg_date_range_end', sanitize_text_field($_POST['aiprg_date_range_end']));
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce handled by WooCommerce
+            update_option('aiprg_date_range_end', sanitize_text_field(wp_unslash($_POST['aiprg_date_range_end'])), false);
         }
         
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification handled by WooCommerce settings framework
         if (isset($_POST['aiprg_review_sentiments'])) {
-            update_option('aiprg_review_sentiments', array_map('sanitize_text_field', $_POST['aiprg_review_sentiments']));
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce handled by WooCommerce
+            update_option('aiprg_review_sentiments', array_map('sanitize_text_field', wp_unslash($_POST['aiprg_review_sentiments'])), false);
         } else {
-            update_option('aiprg_review_sentiments', array());
+            update_option('aiprg_review_sentiments', array(), false);
         }
     }
     
@@ -275,13 +297,13 @@ class AIPRG_Settings {
         check_ajax_referer('aiprg_validate_api_key', 'nonce');
         
         if (!current_user_can('manage_woocommerce')) {
-            wp_die(__('You do not have permission to perform this action.', 'ai-product-review-generator'));
+            wp_die(esc_html__('You do not have permission to perform this action.', 'ai-product-review-generator-for-woocommerce'));
         }
         
-        $api_key = isset($_POST['api_key']) ? sanitize_text_field($_POST['api_key']) : '';
+        $api_key = isset($_POST['api_key']) ? sanitize_text_field(wp_unslash($_POST['api_key'])) : '';
         
         if (empty($api_key)) {
-            wp_send_json_error(array('message' => __('Please enter an API key.', 'ai-product-review-generator')));
+            wp_send_json_error(array('message' => esc_html__('Please enter an API key.', 'ai-product-review-generator-for-woocommerce')));
         }
         
         // Create a temporary OpenAI instance with the provided key
@@ -297,9 +319,9 @@ class AIPRG_Settings {
         $is_valid = $openai->validate_api_key();
         
         if ($is_valid) {
-            wp_send_json_success(array('message' => __('API key is valid!', 'ai-product-review-generator')));
+            wp_send_json_success(array('message' => esc_html__('API key is valid!', 'ai-product-review-generator-for-woocommerce')));
         } else {
-            wp_send_json_error(array('message' => __('Invalid API key. Please check your key and try again.', 'ai-product-review-generator')));
+            wp_send_json_error(array('message' => esc_html__('Invalid API key. Please check your key and try again.', 'ai-product-review-generator-for-woocommerce')));
         }
     }
 }

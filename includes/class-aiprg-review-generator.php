@@ -8,20 +8,39 @@ class AIPRG_Review_Generator {
     
     private $openai;
     private $logger;
+    private $action_scheduler;
     
     public function __construct() {
         $this->openai = new AIPRG_OpenAI();
         $this->logger = AIPRG_Logger::instance();
+        $this->action_scheduler = null; // Lazy load when needed
     }
     
-    public function generate_reviews_for_products($product_ids = array()) {
+    /**
+     * Get or initialize the action scheduler
+     */
+    private function get_action_scheduler() {
+        if ($this->action_scheduler === null) {
+            $this->action_scheduler = new AIPRG_Action_Scheduler();
+        }
+        return $this->action_scheduler;
+    }
+    
+    /**
+     * Generate reviews for products - supports both immediate and scheduled processing
+     * 
+     * @param array $product_ids Array of product IDs
+     * @param bool $use_scheduler Whether to use background processing via Action Scheduler
+     * @return mixed Batch ID if scheduled, results array if immediate
+     */
+    public function generate_reviews_for_products($product_ids = array(), $use_scheduler = false) {
         if (empty($product_ids)) {
             $product_ids = $this->get_selected_products();
         }
         
         if (empty($product_ids)) {
             $this->logger->log_error('No products selected for review generation');
-            return new WP_Error('no_products', __('No products selected for review generation.', 'ai-product-review-generator'));
+            return new WP_Error('no_products', __('No products selected for review generation.', 'ai-product-review-generator-for-woocommerce'));
         }
         
         $this->logger->log('Starting batch review generation', 'INFO', array(
@@ -34,9 +53,45 @@ class AIPRG_Review_Generator {
         $sentiment_balance = get_option('aiprg_sentiment_balance', 'balanced');
         $review_length_mode = get_option('aiprg_review_length_mode', 'mixed');
         
+        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
         $date_start = get_option('aiprg_date_range_start', date('Y-m-d', strtotime('-30 days')));
+        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
         $date_end = get_option('aiprg_date_range_end', date('Y-m-d'));
         
+        // If using scheduler, delegate to Action Scheduler
+        if ($use_scheduler) {
+            $settings = array(
+                'reviews_per_product' => $reviews_per_product,
+                'sentiments' => $sentiments,
+                'sentiment_balance' => $sentiment_balance,
+                'review_length_mode' => $review_length_mode,
+                'date_start' => $date_start,
+                'date_end' => $date_end
+            );
+            
+            $batch_id = $this->get_action_scheduler()->schedule_batch_generation($product_ids, $settings);
+            
+            if ($batch_id) {
+                $this->logger->log('Reviews scheduled for background processing', 'INFO', array(
+                    'batch_id' => $batch_id,
+                    'product_count' => count($product_ids)
+                ));
+                
+                return array(
+                    'scheduled' => true,
+                    'batch_id' => $batch_id,
+                    'message' => sprintf(
+                        /* translators: %d: number of products */
+                        __('Review generation scheduled for %d products. Processing in background.', 'ai-product-review-generator-for-woocommerce'),
+                        count($product_ids)
+                    )
+                );
+            } else {
+                return new WP_Error('scheduling_failed', __('Failed to schedule review generation.', 'ai-product-review-generator-for-woocommerce'));
+            }
+        }
+        
+        // Immediate processing (existing code)
         $this->logger->log('Review generation settings', 'INFO', array(
             'reviews_per_product' => $reviews_per_product,
             'sentiments' => $sentiments,
@@ -137,6 +192,7 @@ class AIPRG_Review_Generator {
                     );
                     
                     $this->update_product_rating($product_id);
+                    $this->clear_review_caches();
                 } else {
                     $this->logger->log_error('Failed to save review to database', array(
                         'product_id' => $product_id,
@@ -148,7 +204,7 @@ class AIPRG_Review_Generator {
                     $results['failed']++;
                     $product_results['reviews'][] = array(
                         'status' => 'error',
-                        'message' => __('Failed to save review to database.', 'ai-product-review-generator')
+                        'message' => __('Failed to save review to database.', 'ai-product-review-generator-for-woocommerce')
                     );
                 }
             }
@@ -191,6 +247,7 @@ class AIPRG_Review_Generator {
             $args = array(
                 'post_type' => 'product',
                 'posts_per_page' => -1,
+                // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- Required for filtering products by category
                 'tax_query' => array(
                     array(
                         'taxonomy' => 'product_cat',
@@ -217,7 +274,7 @@ class AIPRG_Review_Generator {
         }
         
         $weights = $this->get_sentiment_weights($sentiments, $balance);
-        $rand = mt_rand(1, 100);
+        $rand = wp_rand(1, 100);
         $cumulative = 0;
         
         foreach ($weights as $sentiment => $weight) {
@@ -281,11 +338,11 @@ class AIPRG_Review_Generator {
     private function get_rating_from_sentiment($sentiment) {
         switch ($sentiment) {
             case 'negative':
-                return mt_rand(2, 3);
+                return wp_rand(2, 3);
             case 'neutral':
-                return mt_rand(3, 4);
+                return wp_rand(3, 4);
             case 'positive':
-                return mt_rand(4, 5);
+                return wp_rand(4, 5);
             default:
                 return 5;
         }
@@ -346,7 +403,255 @@ class AIPRG_Review_Generator {
             'Carlos', 'Selena', 'Fernando', 'Valeria', 'Marco', 'Mariana', 'Rafael', 'Regina',
             'Omar', 'Beatriz', 'Luis', 'Alicia', 'Sergio', 'Miranda', 'Roberto', 'Claudia',
             'Pedro', 'Raquel', 'Jamie', 'Sofia', 'Casey', 'Iris', 'Robin', 'Jade',
-            'Drew', 'Rosa', 'Cameron', 'Holly', 'Morgan', 'Pearl', 'Taylor', 'Nina'
+            'Drew', 'Rosa', 'Cameron', 'Holly', 'Morgan', 'Pearl', 'Taylor', 'Nina',
+            'Abby', 'Adaline', 'Adelaide', 'Adeline', 'Agnes', 'Aisha', 'Alana', 'Alba',
+            'Alejandra', 'Alessandra', 'Alexandra', 'Alexandria', 'Alexia', 'Alina', 'Alison',
+            'Allegra', 'Allison', 'Alma', 'Amara', 'Amaya', 'Amelie', 'Amira', 'Ana',
+            'Anastasia', 'Anaya', 'Andi', 'Angie', 'Anika', 'Anita', 'Ann', 'Annabelle',
+            'Annalise', 'Anne', 'Annie', 'Annika', 'Antonia', 'April', 'Arabella', 'Aria',
+            'Ariana', 'Ariel', 'Armani', 'Artemis', 'Arya', 'Ashlyn', 'Aspen', 'Astrid',
+            'Athena', 'Aubree', 'Audra', 'August', 'Aurelia', 'Averie', 'Ayla', 'Azalea',
+            'Bailey', 'Barbara', 'Beatrice', 'Becca', 'Bella', 'Belle', 'Bernice', 'Beth',
+            'Bethany', 'Bianca', 'Blair', 'Blake', 'Blanche', 'Bonnie', 'Braelyn', 'Bree',
+            'Brenna', 'Briana', 'Bridget', 'Brielle', 'Brigitte', 'Brinley', 'Bristol', 'Brittney',
+            'Brynn', 'Cadence', 'Caitlin', 'Caitlyn', 'Callie', 'Cameron', 'Camille', 'Candace',
+            'Cara', 'Carina', 'Carla', 'Carly', 'Carmen', 'Carolina', 'Carolyn', 'Carrie',
+            'Carter', 'Cassandra', 'Cassidy', 'Catalina', 'Cecelia', 'Cecilia', 'Celeste', 'Celia',
+            'Chanel', 'Charity', 'Charlee', 'Charley', 'Charlie', 'Charlize', 'Chelsea', 'Cheyenne',
+            'Christina', 'Claire', 'Clara', 'Clarissa', 'Clementine', 'Cleo', 'Colette', 'Collins',
+            'Constance', 'Cora', 'Coral', 'Cordelia', 'Corinne', 'Courtney', 'Crystal', 'Cynthia',
+            'Dahlia', 'Dakota', 'Dallas', 'Dana', 'Daniela', 'Daniella', 'Daphne', 'Dara',
+            'Darcy', 'Daria', 'Dawn', 'Deanna', 'Delia', 'Delilah', 'Demi', 'Denise',
+            'Desiree', 'Diamond', 'Diana', 'Diane', 'Dina', 'Dixie', 'Dolores', 'Dominique',
+            'Dora', 'Doris', 'Dream', 'Dulce', 'Dylan', 'Eden', 'Edith', 'Eileen',
+            'Elaina', 'Elaine', 'Eleanor', 'Elisa', 'Elise', 'Eliza', 'Ellen', 'Ellie',
+            'Eloise', 'Elora', 'Elsa', 'Elsie', 'Ember', 'Emely', 'Emerson', 'Emilia',
+            'Emmeline', 'Emmy', 'Ensley', 'Erica', 'Erika', 'Erin', 'Esme', 'Esmeralda',
+            'Esperanza', 'Estella', 'Estelle', 'Esther', 'Estrella', 'Ethel', 'Eva', 'Evangeline',
+            'Eve', 'Evelynn', 'Everleigh', 'Evie', 'Faye', 'Felicity', 'Fernanda', 'Fiona',
+            'Flora', 'Florence', 'Frances', 'Francesca', 'Frankie', 'Freya', 'Frida', 'Gabi',
+            'Gabriela', 'Gabrielle', 'Gail', 'Galilea', 'Gemma', 'Genevieve', 'Georgia', 'Geraldine',
+            'Gia', 'Gianna', 'Gigi', 'Gillian', 'Gina', 'Giovanna', 'Giselle', 'Gladys',
+            'Gloria', 'Goldie', 'Grace', 'Gracie', 'Gracelyn', 'Greta', 'Gretchen', 'Guadalupe',
+            'Gwen', 'Gwendolyn', 'Hadassah', 'Hailey', 'Haisley', 'Haley', 'Halle', 'Hallie',
+            'Hana', 'Hanna', 'Hannah', 'Harley', 'Harlow', 'Harmony', 'Harper', 'Harriet',
+            'Hattie', 'Haven', 'Hayden', 'Haylee', 'Hayley', 'Heather', 'Heaven', 'Heidi',
+            'Helena', 'Henley', 'Henrietta', 'Hillary', 'Holland', 'Hope', 'Hunter', 'Ida',
+            'Iliana', 'Imani', 'India', 'Indigo', 'Ingrid', 'Irene', 'Iris', 'Irma',
+            'Isabela', 'Isabella', 'Isabelle', 'Isla', 'Ivy', 'Izabella', 'Jacqueline', 'Jada',
+            'Jade', 'Jaelynn', 'Jaida', 'Jaimie', 'Jamie', 'Jana', 'Jane', 'Janelle',
+            'Janessa', 'Janice', 'Janine', 'Jasmin', 'Jaycee', 'Jayda', 'Jayden', 'Jayla',
+            'Jaylah', 'Jazlyn', 'Jazmin', 'Jean', 'Jeanette', 'Jemma', 'Jenna', 'Jennie',
+            'Jenny', 'Jensen', 'Jessa', 'Jessie', 'Jewel', 'Jill', 'Jillian', 'Jo',
+            'Joan', 'Joanna', 'Joanne', 'Jocelyn', 'Joelle', 'Johanna', 'Jolene', 'Jolie',
+            'Jordan', 'Jordyn', 'Joselyn', 'Josie', 'Journey', 'Joy', 'Joyce', 'Juanita',
+            'Judith', 'Judy', 'Julia', 'Juliet', 'Juliette', 'June', 'Juniper', 'Justice',
+            'Justine', 'Kaia', 'Kailani', 'Kaitlin', 'Kaitlyn', 'Kali', 'Kaliyah', 'Kallie',
+            'Kamila', 'Kamilah', 'Kamryn', 'Kara', 'Karen', 'Karina', 'Karla', 'Karlee',
+            'Karly', 'Karma', 'Kasey', 'Kate', 'Katelyn', 'Katharine', 'Katherine', 'Kathleen',
+            'Kathryn', 'Kathy', 'Katie', 'Katrina', 'Kay', 'Kaydence', 'Kayla', 'Kaylani',
+            'Kaylee', 'Kayleigh', 'Keira', 'Kelly', 'Kelsey', 'Kendall', 'Kendra', 'Kenna',
+            'Kennedi', 'Kennedy', 'Kenya', 'Kenzie', 'Keyla', 'Khloe', 'Kiana', 'Kiara',
+            'Kiera', 'Kim', 'Kimber', 'Kimberly', 'Kimora', 'Kinley', 'Kira', 'Kirsten',
+            'Kora', 'Kori', 'Kristen', 'Kristin', 'Kristina', 'Krystal', 'Kyla', 'Kylee',
+            'Kyleigh', 'Kylie', 'Kyra', 'Lacey', 'Laila', 'Lailah', 'Lainey', 'Lana',
+            'Landry', 'Laney', 'Lara', 'Larissa', 'Laura', 'Laurel', 'Lauren', 'Lauryn',
+            'Layla', 'Laylah', 'Lea', 'Leah', 'Leanna', 'Lee', 'Legacy', 'Leia',
+            'Leighton', 'Leila', 'Leilani', 'Lena', 'Lennon', 'Lennox', 'Leona', 'Leslie',
+            'Lexi', 'Lexie', 'Leyla', 'Lia', 'Liana', 'Liberty', 'Lila', 'Lilah',
+            'Lilian', 'Liliana', 'Lillian', 'Lilliana', 'Lillie', 'Lilly', 'Lily', 'Lilyana',
+            'Lina', 'Linda', 'Lindsay', 'Lindsey', 'Lisa', 'Liv', 'Livia', 'Liz',
+            'Liza', 'Lizbeth', 'Lizzie', 'Logan', 'Lola', 'London', 'Londyn', 'Lorelai',
+            'Lorelei', 'Loretta', 'Lori', 'Lorraine', 'Louisa', 'Louise', 'Lucia', 'Luciana',
+            'Lucille', 'Lucy', 'Luella', 'Luisa', 'Luna', 'Lyanna', 'Lydia', 'Lyla',
+            'Lylah', 'Lynn', 'Lyra', 'Lyric', 'Mabel', 'Maci', 'Macie', 'Macy',
+            'Madalyn', 'Maddison', 'Madeleine', 'Madeline', 'Madelyn', 'Madelynn', 'Madilyn', 'Madilynn',
+            'Madison', 'Madisyn', 'Mae', 'Maeve', 'Maggie', 'Magnolia', 'Maia', 'Maisie',
+            'Makayla', 'Makenna', 'Makenzie', 'Malani', 'Malaya', 'Malayah', 'Malaysia', 'Maleah',
+            'Malia', 'Maliyah', 'Mallory', 'Mara', 'Maren', 'Margaret', 'Margo', 'Margot',
+            'Maria', 'Mariah', 'Mariam', 'Mariana', 'Marianna', 'Marie', 'Mariela', 'Marilyn',
+            'Marina', 'Marine', 'Marion', 'Marisa', 'Marisol', 'Marissa', 'Marjorie', 'Marla',
+            'Marlee', 'Marley', 'Marlowe', 'Martha', 'Mary', 'Maryam', 'Matilda', 'Mattie',
+            'Mavis', 'Maxine', 'May', 'Maya', 'Mckenna', 'Mckenzie', 'Mckinley', 'Meadow',
+            'Megan', 'Meghan', 'Melanie', 'Melany', 'Melina', 'Melissa', 'Melody', 'Mercedes',
+            'Meredith', 'Mia', 'Micah', 'Michaela', 'Michelle', 'Mikaela', 'Mikayla', 'Mila',
+            'Milan', 'Milana', 'Milani', 'Milena', 'Miley', 'Millie', 'Mina', 'Mira',
+            'Miracle', 'Miranda', 'Miriam', 'Mollie', 'Molly', 'Monica', 'Monroe', 'Morgan',
+            'Mya', 'Myah', 'Myla', 'Mylah', 'Myra', 'Nadia', 'Nadine', 'Nala',
+            'Nalani', 'Nancy', 'Naomi', 'Naomy', 'Natalia', 'Natalie', 'Nataly', 'Natalya',
+            'Natasha', 'Nathalia', 'Nathalie', 'Navy', 'Naya', 'Nayeli', 'Nevaeh', 'Nia',
+            'Nichole', 'Nicole', 'Nicolette', 'Nikki', 'Nina', 'Noa', 'Noel', 'Noelle',
+            'Noemi', 'Nola', 'Noor', 'Nora', 'Norah', 'Nova', 'Novah', 'Nyla',
+            'Nylah', 'Oaklee', 'Oakley', 'Oaklyn', 'Oaklynn', 'Octavia', 'Odette', 'Olive',
+            'Olivia', 'Opal', 'Ophelia', 'Paige', 'Paislee', 'Paisley', 'Palmer', 'Paloma',
+            'Pamela', 'Paola', 'Paradise', 'Paris', 'Parker', 'Patricia', 'Paula', 'Paulina',
+            'Payton', 'Pearl', 'Penelope', 'Penny', 'Perla', 'Peyton', 'Phoebe', 'Phoenix',
+            'Piper', 'Poppy', 'Presley', 'Princess', 'Priscilla', 'Promise', 'Quinn', 'Rachel',
+            'Raegan', 'Raelyn', 'Raelynn', 'Raina', 'Ramona', 'Raquel', 'Raven', 'Rayna',
+            'Rayne', 'Reagan', 'Rebecca', 'Rebekah', 'Reese', 'Reina', 'Remi', 'Remington',
+            'Remy', 'Renata', 'Renee', 'Reyna', 'Rhea', 'Rhiannon', 'Riley', 'River',
+            'Rivka', 'Robin', 'Robyn', 'Rocio', 'Romina', 'Rory', 'Rosa', 'Rosalee',
+            'Rosalie', 'Rosalind', 'Rosalyn', 'Rose', 'Rosemary', 'Rosie', 'Rowan', 'Roxanne',
+            'Royal', 'Royalty', 'Ruby', 'Ruth', 'Ryan', 'Ryann', 'Rylee', 'Ryleigh',
+            'Rylie', 'Sabrina', 'Sadie', 'Sage', 'Saige', 'Salem', 'Salma', 'Samantha',
+            'Samara', 'Samira', 'Sandra', 'Sandy', 'Saoirse', 'Sara', 'Sarah', 'Sarai',
+            'Sariah', 'Sasha', 'Savanna', 'Savannah', 'Sawyer', 'Saylor', 'Scarlet', 'Scarlett',
+            'Scout', 'Selah', 'Selena', 'Selene', 'Serena', 'Serenity', 'Shania', 'Shannon',
+            'Sharon', 'Shayla', 'Shea', 'Sheila', 'Shelby', 'Sherry', 'Shiloh', 'Shirley',
+            'Siena', 'Sienna', 'Sierra', 'Simone', 'Sky', 'Skye', 'Skyla', 'Skylar',
+            'Skyler', 'Sloan', 'Sloane', 'Sofia', 'Soleil', 'Sonia', 'Sonya', 'Sophia',
+            'Sophie', 'Stacy', 'Stella', 'Stephanie', 'Stevie', 'Stormi', 'Summer', 'Sunny',
+            'Susan', 'Sutton', 'Suzanne', 'Sydney', 'Sylvia', 'Sylvie', 'Tabitha', 'Talia',
+            'Taliyah', 'Tamara', 'Tamera', 'Tamia', 'Tammy', 'Tania', 'Tanya', 'Tara',
+            'Taryn', 'Tatiana', 'Tatum', 'Taylor', 'Teagan', 'Teresa', 'Tessa', 'Thalia',
+            'Thea', 'Theodora', 'Theresa', 'Tiana', 'Tiffany', 'Tina', 'Tinley', 'Tinsley',
+            'Tori', 'Tracy', 'Trinity', 'Trisha', 'Trudy', 'Tuesday', 'Tyler', 'Uma',
+            'Unity', 'Ursula', 'Valentina', 'Valeria', 'Valerie', 'Valery', 'Vanessa', 'Veda',
+            'Vera', 'Veronica', 'Victoria', 'Vienna', 'Violet', 'Violeta', 'Virginia', 'Vivian',
+            'Viviana', 'Vivienne', 'Wanda', 'Waverly', 'Wendy', 'Whitley', 'Whitney', 'Willa',
+            'Willow', 'Winter', 'Wren', 'Wynter', 'Ximena', 'Xiomara', 'Yamileth', 'Yara',
+            'Yareli', 'Yaretzi', 'Yasmin', 'Yazmin', 'Yolanda', 'Yvette', 'Yvonne', 'Zainab',
+            'Zara', 'Zaria', 'Zariah', 'Zariyah', 'Zaylee', 'Zelda', 'Zendaya', 'Zion',
+            'Zoe', 'Zoey', 'Zoie', 'Zola', 'Zora', 'Zuri', 'Abdul', 'Abdullah',
+            'Abel', 'Abraham', 'Abram', 'Ace', 'Adam', 'Adan', 'Aden', 'Aditya',
+            'Adonis', 'Adrian', 'Adriel', 'Adrien', 'Ahmad', 'Ahmed', 'Aidan', 'Aiden',
+            'Alan', 'Albert', 'Alberto', 'Alden', 'Aldo', 'Alec', 'Alejandro', 'Alessandro',
+            'Alex', 'Alexander', 'Alexis', 'Alfonso', 'Alfred', 'Alfredo', 'Ali', 'Alijah',
+            'Alistair', 'Allan', 'Allen', 'Alonso', 'Alonzo', 'Alvaro', 'Alvin', 'Amari',
+            'Ambrose', 'Amir', 'Amos', 'Anakin', 'Anders', 'Anderson', 'Andre', 'Andreas',
+            'Andres', 'Andrew', 'Andy', 'Angel', 'Angelo', 'Anson', 'Anthony', 'Antoine',
+            'Anton', 'Antonio', 'Apollo', 'Archer', 'Archie', 'Ares', 'Ari', 'Ariel',
+            'Arjun', 'Arlo', 'Armando', 'Armani', 'Arnav', 'Arnold', 'Arrow', 'Arthur',
+            'Arturo', 'Aryan', 'Asa', 'Asher', 'Ashton', 'Atlas', 'Atticus', 'August',
+            'Augustine', 'Augustus', 'Austin', 'Avery', 'Axel', 'Axl', 'Axton', 'Ayaan',
+            'Ayden', 'Azariah', 'Aziel', 'Baker', 'Banks', 'Barrett', 'Barry', 'Bartholomew',
+            'Basil', 'Baxter', 'Bear', 'Beau', 'Beckett', 'Beckham', 'Ben', 'Benedict',
+            'Benjamin', 'Bennett', 'Bennie', 'Benny', 'Benson', 'Bentley', 'Bernard', 'Bert',
+            'Billy', 'Bjorn', 'Blaine', 'Blair', 'Blake', 'Blaze', 'Bo', 'Bobby',
+            'Bode', 'Bodhi', 'Bodie', 'Boone', 'Boris', 'Boston', 'Bowen', 'Boyd',
+            'Brad', 'Braden', 'Bradley', 'Brady', 'Braeden', 'Braiden', 'Brandon', 'Branson',
+            'Brantley', 'Braxton', 'Brayan', 'Brayden', 'Braydon', 'Braylon', 'Brecken', 'Brendan',
+            'Brenden', 'Brennan', 'Brent', 'Brett', 'Brian', 'Briggs', 'Brock', 'Brodie',
+            'Brody', 'Bronson', 'Brooks', 'Bruce', 'Bruno', 'Bryan', 'Bryant', 'Bryce',
+            'Brycen', 'Bryson', 'Buck', 'Byron', 'Cade', 'Caden', 'Caiden', 'Cain',
+            'Caleb', 'Callan', 'Callum', 'Calvin', 'Camden', 'Cameron', 'Camilo', 'Cannon',
+            'Carl', 'Carlos', 'Carlton', 'Carmelo', 'Carson', 'Carter', 'Case', 'Casen',
+            'Casey', 'Cash', 'Cason', 'Caspian', 'Cassius', 'Castiel', 'Cayden', 'Cayson',
+            'Cecil', 'Cedric', 'Cesar', 'Chad', 'Chaim', 'Chance', 'Chandler', 'Charles',
+            'Charlie', 'Chase', 'Chester', 'Chris', 'Christian', 'Christopher', 'Cillian', 'Clark',
+            'Claude', 'Clay', 'Clayton', 'Clement', 'Clifford', 'Clifton', 'Clint', 'Clinton',
+            'Clyde', 'Coby', 'Cody', 'Cohen', 'Colby', 'Cole', 'Coleman', 'Colin',
+            'Collin', 'Colson', 'Colt', 'Colten', 'Colton', 'Conner', 'Connor', 'Conrad',
+            'Cooper', 'Corbin', 'Corey', 'Cormac', 'Cornelius', 'Cory', 'Craig', 'Crew',
+            'Cristian', 'Cristiano', 'Cristopher', 'Crosby', 'Cruz', 'Cullen', 'Curtis', 'Cyrus',
+            'Dakota', 'Dale', 'Dallas', 'Dalton', 'Damari', 'Damian', 'Damien', 'Damon',
+            'Dan', 'Dane', 'Dangelo', 'Daniel', 'Danny', 'Dante', 'Darian', 'Dariel',
+            'Dario', 'Darius', 'Darnell', 'Darrell', 'Darren', 'Darwin', 'Dash', 'Dave',
+            'David', 'Davin', 'Davis', 'Davion', 'Dawson', 'Dax', 'Daxton', 'Dayton',
+            'Dean', 'Deandre', 'Declan', 'Demetrius', 'Dennis', 'Denver', 'Derek', 'Derrick',
+            'Desmond', 'Devin', 'Devon', 'Dexter', 'Diego', 'Dilan', 'Dillon', 'Dimitri',
+            'Dion', 'Dominic', 'Dominick', 'Dominik', 'Dominique', 'Don', 'Donald', 'Donovan',
+            'Dorian', 'Douglas', 'Drake', 'Drew', 'Duke', 'Duncan', 'Dustin', 'Dwayne',
+            'Dylan', 'Earl', 'Easton', 'Eddie', 'Eden', 'Edgar', 'Edison', 'Edmund',
+            'Eduardo', 'Edward', 'Edwin', 'Efrain', 'Eli', 'Elian', 'Elias', 'Elijah',
+            'Eliseo', 'Elisha', 'Elliot', 'Elliott', 'Ellis', 'Elmer', 'Elon', 'Elvis',
+            'Emanuel', 'Emerson', 'Emery', 'Emiliano', 'Emilio', 'Emmanuel', 'Emmett', 'Emmitt',
+            'Emory', 'Enoch', 'Enrique', 'Enzo', 'Ephraim', 'Eric', 'Erick', 'Erik',
+            'Ernest', 'Ernesto', 'Ernie', 'Ervin', 'Esteban', 'Ethan', 'Eugene', 'Evan',
+            'Everett', 'Ezekiel', 'Ezequiel', 'Ezra', 'Fabian', 'Felipe', 'Felix', 'Fernando',
+            'Finley', 'Finn', 'Finnegan', 'Fisher', 'Fletcher', 'Floyd', 'Flynn', 'Ford',
+            'Forest', 'Forrest', 'Foster', 'Fox', 'Francis', 'Francisco', 'Frank', 'Franklin',
+            'Franky', 'Fred', 'Freddie', 'Frederick', 'Gabriel', 'Gael', 'Gage', 'Garrett',
+            'Gary', 'Gatlin', 'Gavin', 'Gene', 'Geoffrey', 'George', 'Gerald', 'Gerard',
+            'Gerardo', 'German', 'Gianni', 'Gibson', 'Gideon', 'Gilbert', 'Gilberto', 'Gino',
+            'Giovanni', 'Glen', 'Glenn', 'Gordon', 'Grady', 'Graham', 'Grant', 'Grayson',
+            'Greg', 'Gregory', 'Grey', 'Greyson', 'Griffin', 'Guillermo', 'Gunnar', 'Gunner',
+            'Gus', 'Gustavo', 'Guy', 'Haden', 'Hadley', 'Hakeem', 'Hamza', 'Hank',
+            'Hans', 'Harlan', 'Harley', 'Harold', 'Harris', 'Harrison', 'Harry', 'Harvey',
+            'Hassan', 'Hayden', 'Hayes', 'Heath', 'Hector', 'Hendrix', 'Henrik', 'Henry',
+            'Herbert', 'Herman', 'Hezekiah', 'Holden', 'Homer', 'Horace', 'Houston', 'Howard',
+            'Hudson', 'Hugh', 'Hugo', 'Humberto', 'Hunter', 'Huxley', 'Ian', 'Ibrahim',
+            'Idris', 'Ignacio', 'Iker', 'Immanuel', 'Indiana', 'Ira', 'Irvin', 'Irving',
+            'Isaac', 'Isaiah', 'Isaias', 'Ishaan', 'Ismael', 'Israel', 'Issac', 'Ivan',
+            'Izaiah', 'Jabari', 'Jace', 'Jack', 'Jackson', 'Jacob', 'Jacoby', 'Jad',
+            'Jaden', 'Jadiel', 'Jagger', 'Jaiden', 'Jaime', 'Jair', 'Jairo', 'Jake',
+            'Jakob', 'Jalen', 'Jamal', 'Jamari', 'James', 'Jameson', 'Jamie', 'Jamir',
+            'Jamison', 'Jared', 'Jarvis', 'Jase', 'Jasiah', 'Jason', 'Jasper', 'Javier',
+            'Javion', 'Jax', 'Jaxen', 'Jaxon', 'Jaxson', 'Jay', 'Jayce', 'Jayceon',
+            'Jayden', 'Jaylen', 'Jayson', 'Jaziel', 'Jean', 'Jedidiah', 'Jeff', 'Jefferson',
+            'Jeffery', 'Jeffrey', 'Jensen', 'Jeremiah', 'Jeremy', 'Jericho', 'Jermaine', 'Jerome',
+            'Jerry', 'Jesse', 'Jessie', 'Jesus', 'Jett', 'Jimmy', 'Jin', 'Joaquin',
+            'Job', 'Jody', 'Joe', 'Joel', 'Joey', 'Johan', 'Johann', 'John',
+            'Johnathan', 'Johnathon', 'Johnny', 'Jon', 'Jonah', 'Jonas', 'Jonathan', 'Jonathon',
+            'Jones', 'Jordan', 'Jordy', 'Jorge', 'Jose', 'Josef', 'Joseph', 'Josh',
+            'Joshua', 'Josiah', 'Josue', 'Jovan', 'Jovani', 'Juan', 'Judah', 'Jude',
+            'Judson', 'Julian', 'Julien', 'Julio', 'Julius', 'Junior', 'Justice', 'Justin',
+            'Justus', 'Kace', 'Kade', 'Kaden', 'Kai', 'Kaiden', 'Kale', 'Kaleb',
+            'Kamari', 'Kamden', 'Kameron', 'Kamryn', 'Kane', 'Kannon', 'Kareem', 'Karl',
+            'Karson', 'Karter', 'Kase', 'Kasen', 'Kash', 'Kashton', 'Kason', 'Kayden',
+            'Kayson', 'Keanu', 'Keaton', 'Keegan', 'Keenan', 'Keith', 'Kellan', 'Kellen',
+            'Kelvin', 'Kendall', 'Kendrick', 'Kenneth', 'Kenny', 'Kent', 'Kenton', 'Kenya',
+            'Kenzo', 'Keon', 'Keoni', 'Kermit', 'Kevin', 'Khalid', 'Khalil', 'Kian',
+            'Kieran', 'Kieren', 'Killian', 'Kim', 'King', 'Kingston', 'Kirk', 'Klaus',
+            'Klay', 'Knox', 'Koa', 'Kobe', 'Koda', 'Kody', 'Kohen', 'Kole',
+            'Kolten', 'Kolton', 'Korbin', 'Krew', 'Kristian', 'Kristopher', 'Kurt', 'Kurtis',
+            'Kylan', 'Kyle', 'Kyler', 'Kylian', 'Kyrie', 'Kyson', 'Lachlan', 'Lake',
+            'Lance', 'Landen', 'Landon', 'Landry', 'Lane', 'Larry', 'Lars', 'Laurence',
+            'Lawrence', 'Lawson', 'Layne', 'Layton', 'Leandro', 'Ledger', 'Lee', 'Legacy',
+            'Legend', 'Leif', 'Leigh', 'Leland', 'Lennon', 'Lennox', 'Leo', 'Leon',
+            'Leonard', 'Leonardo', 'Leonel', 'Leonidas', 'Leopold', 'Leroy', 'Leslie', 'Lester',
+            'Levi', 'Lewis', 'Liam', 'Lincoln', 'Linden', 'Lionel', 'Lloyd', 'Lochlan',
+            'Logan', 'London', 'Lorenzo', 'Louie', 'Louis', 'Luca', 'Lucas', 'Lucian',
+            'Luciano', 'Lucky', 'Luis', 'Luka', 'Lukas', 'Luke', 'Luther', 'Lyric',
+            'Mac', 'Mack', 'Mackenzie', 'Maddox', 'Magnus', 'Maison', 'Major', 'Makai',
+            'Malachi', 'Malakai', 'Malcolm', 'Malik', 'Manuel', 'Marc', 'Marcel', 'Marcelo',
+            'Marco', 'Marcos', 'Marcus', 'Mario', 'Marion', 'Mark', 'Marley', 'Marlon',
+            'Marshall', 'Martin', 'Marvin', 'Mason', 'Mateo', 'Mathew', 'Mathias', 'Matias',
+            'Matt', 'Matteo', 'Matthew', 'Matthias', 'Maurice', 'Mauricio', 'Maverick', 'Max',
+            'Maxim', 'Maximilian', 'Maximiliano', 'Maximo', 'Maximus', 'Maxwell', 'Mekhi', 'Melvin',
+            'Memphis', 'Merrick', 'Messiah', 'Micah', 'Michael', 'Mickey', 'Miguel', 'Mike',
+            'Milan', 'Miles', 'Miller', 'Milo', 'Milton', 'Misael', 'Mitchell', 'Mohamed',
+            'Mohammad', 'Mohammed', 'Moises', 'Montana', 'Montgomery', 'Monty', 'Morgan', 'Morris',
+            'Moses', 'Muhammad', 'Murphy', 'Murray', 'Myles', 'Mylo', 'Nash', 'Nasir',
+            'Nathan', 'Nathanael', 'Nathaniel', 'Naveen', 'Neal', 'Neil', 'Nelson', 'Neville',
+            'Nicholas', 'Nick', 'Nico', 'Nicolas', 'Nigel', 'Nikhil', 'Nikolas', 'Niko',
+            'Nikolai', 'Nixon', 'Noah', 'Noe', 'Noel', 'Nolan', 'Norman', 'Nova',
+            'Oakley', 'Ocean', 'Octavio', 'Oden', 'Odin', 'Oliver', 'Ollie', 'Omar',
+            'Omari', 'Onyx', 'Orion', 'Orlando', 'Oscar', 'Oswald', 'Otis', 'Otto',
+            'Owen', 'Pablo', 'Palmer', 'Paolo', 'Paris', 'Parker', 'Pascal', 'Patrick',
+            'Paul', 'Paxton', 'Payton', 'Pedro', 'Percy', 'Perry', 'Pete', 'Peter',
+            'Peyton', 'Philip', 'Phillip', 'Phoenix', 'Pierce', 'Pierre', 'Porter', 'Prasad',
+            'Preston', 'Prince', 'Princeton', 'Quentin', 'Quest', 'Quincy', 'Quinn', 'Quinton',
+            'Radley', 'Rafael', 'Rage', 'Raiden', 'Ralph', 'Ramon', 'Ramsey', 'Randy',
+            'Ranger', 'Raphael', 'Rashad', 'Raul', 'Raven', 'Ray', 'Rayan', 'Raymond',
+            'Rayyan', 'Reagan', 'Reed', 'Reese', 'Reginald', 'Reid', 'Reign', 'Remington',
+            'Remy', 'Rene', 'Reuben', 'Rex', 'Rey', 'Reyan', 'Rhett', 'Rhys',
+            'Ricardo', 'Richard', 'Ricky', 'Rico', 'Ridge', 'Ridley', 'Riley', 'River',
+            'Robert', 'Roberto', 'Robin', 'Rocco', 'Rocky', 'Roderick', 'Rodrigo', 'Rodney',
+            'Roger', 'Rohan', 'Roland', 'Roman', 'Rome', 'Romeo', 'Ronald', 'Ronan',
+            'Ronin', 'Ronnie', 'Rory', 'Ross', 'Rowan', 'Roy', 'Royal', 'Royce',
+            'Ruben', 'Rudy', 'Russell', 'Ryan', 'Ryder', 'Ryker', 'Rylan', 'Ryland',
+            'Rylee', 'Sage', 'Saint', 'Salem', 'Salvador', 'Salvatore', 'Sam', 'Samir',
+            'Samson', 'Samuel', 'Sander', 'Santana', 'Santiago', 'Santos', 'Saul', 'Sawyer',
+            'Scott', 'Sean', 'Sebastian', 'Sergio', 'Seth', 'Shamus', 'Shane', 'Shannon',
+            'Shaun', 'Shawn', 'Shea', 'Sheldon', 'Shepherd', 'Sherman', 'Shiloh', 'Sidney',
+            'Silas', 'Simeon', 'Simon', 'Sincere', 'Skylar', 'Skyler', 'Solomon', 'Sonny',
+            'Soren', 'Spencer', 'Stanley', 'Stefan', 'Stephen', 'Sterling', 'Steve', 'Steven',
+            'Stone', 'Stuart', 'Sullivan', 'Sutton', 'Sylas', 'Sylvester', 'Tadeo', 'Talon',
+            'Tanner', 'Tate', 'Tatum', 'Taylor', 'Ted', 'Teddy', 'Terrance', 'Terrell',
+            'Terrence', 'Terry', 'Thaddeus', 'Thatcher', 'Theo', 'Theodore', 'Theron', 'Thomas',
+            'Thor', 'Tiberius', 'Tim', 'Timothy', 'Titan', 'Titus', 'Tobias', 'Toby',
+            'Todd', 'Tom', 'Tomas', 'Tommy', 'Tony', 'Trace', 'Travis', 'Trent',
+            'Trenton', 'Trevor', 'Trey', 'Tripp', 'Tristan', 'Tristen', 'Tristian', 'Troy',
+            'Tucker', 'Ty', 'Tyler', 'Tyree', 'Tyrell', 'Tyrone', 'Tyson', 'Ulises',
+            'Ulysses', 'Uriah', 'Uriel', 'Valentin', 'Valentine', 'Valentino', 'Van', 'Vance',
+            'Vaughn', 'Vernon', 'Vicente', 'Victor', 'Vihaan', 'Vincent', 'Vincenzo', 'Wade',
+            'Walker', 'Wallace', 'Walter', 'Warren', 'Watson', 'Waylon', 'Wayne', 'Wells',
+            'Wes', 'Wesley', 'Weston', 'Wilder', 'Wiley', 'Will', 'William', 'Willie',
+            'Willis', 'Wilson', 'Winston', 'Wyatt', 'Wylie', 'Xander', 'Xavier', 'Xzavier',
+            'Yahir', 'Yehuda', 'Yosef', 'Yusuf', 'Zachariah', 'Zachary', 'Zack', 'Zaid',
+            'Zaiden', 'Zain', 'Zaire', 'Zakai', 'Zander', 'Zane', 'Zavier', 'Zayn',
+            'Zayne', 'Zayden', 'Zechariah', 'Zeke', 'Zion', 'Zyaire'
         );
         
         $last_initials = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'W');
@@ -356,7 +661,7 @@ class AIPRG_Review_Generator {
     
     private function generate_reviewer_email($name) {
         $name_parts = explode(' ', strtolower($name));
-        $username = $name_parts[0] . mt_rand(100, 999);
+        $username = $name_parts[0] . wp_rand(100, 999);
         $domains = array('gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com');
         
         return $username . '@' . $domains[array_rand($domains)];
@@ -366,8 +671,9 @@ class AIPRG_Review_Generator {
         $start_timestamp = strtotime($start);
         $end_timestamp = strtotime($end);
         
-        $random_timestamp = mt_rand($start_timestamp, $end_timestamp);
+        $random_timestamp = wp_rand($start_timestamp, $end_timestamp);
         
+        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
         return date('Y-m-d H:i:s', $random_timestamp);
     }
     
@@ -376,7 +682,9 @@ class AIPRG_Review_Generator {
             'post_id' => $product_id,
             'status' => 'approve',
             'type' => 'review',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Required for filtering reviews by rating
             'meta_key' => 'rating',
+            // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Required for filtering reviews by rating
             'meta_value' => array(1, 2, 3, 4, 5)
         );
         
@@ -405,5 +713,17 @@ class AIPRG_Review_Generator {
         update_post_meta($product_id, '_wc_average_rating', $average_rating);
         update_post_meta($product_id, '_wc_review_count', $review_count);
         update_post_meta($product_id, '_wc_rating_count', $rating_counts);
+    }
+    
+    /**
+     * Clear review-related caches
+     */
+    private function clear_review_caches() {
+        // Clear all review-related caches
+        wp_cache_delete('aiprg_total_reviews_count', 'aiprg');
+        wp_cache_delete('aiprg_stats_total_reviews', 'aiprg_stats');
+        wp_cache_delete('aiprg_stats_today_reviews_' . current_time('Y-m-d'), 'aiprg_stats');
+        wp_cache_delete('aiprg_stats_avg_rating', 'aiprg_stats');
+        wp_cache_delete('aiprg_active_batches', 'aiprg_batches');
     }
 }

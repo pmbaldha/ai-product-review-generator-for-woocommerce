@@ -4,9 +4,9 @@
  * Plugin URI: https://wordpress.org/plugins/ai-product-review-generator
  * Description: Transform your WooCommerce store with AI-powered product reviews. Generate authentic, detailed reviews using advanced AI technology.
  * Version: 1.0.0
- * Author: Orca WP
+ * Author: Prashant Baldha
  * Author URI: https://prashantwp.com
- * Text Domain: ai-product-review-generator
+ * Text Domain: ai-product-review-generator-for-woocommerce
  * Domain Path: /languages
  * Requires at least: 6.7
  * Requires PHP: 7.2
@@ -70,7 +70,7 @@ class AI_Product_Review_Generator {
     public function woocommerce_missing_notice() {
         ?>
         <div class="notice notice-error is-dismissible">
-            <p><?php esc_html_e('AI Product Review Generator requires WooCommerce to be installed and activated.', 'ai-product-review-generator'); ?></p>
+            <p><?php esc_html_e('AI Product Review Generator requires WooCommerce to be installed and activated.', 'ai-product-review-generator-for-woocommerce'); ?></p>
         </div>
         <?php
     }
@@ -78,13 +78,14 @@ class AI_Product_Review_Generator {
     public function woocommerce_version_notice() {
         ?>
         <div class="notice notice-error is-dismissible">
-            <p><?php esc_html_e('AI Product Review Generator requires WooCommerce version 9.3 or higher.', 'ai-product-review-generator'); ?></p>
+            <p><?php esc_html_e('AI Product Review Generator requires WooCommerce version 9.3 or higher.', 'ai-product-review-generator-for-woocommerce'); ?></p>
         </div>
         <?php
     }
     
     private function load_textdomain() {
-        load_plugin_textdomain('ai-product-review-generator', false, dirname(AIPRG_PLUGIN_BASENAME) . '/languages');
+        // WordPress automatically loads translations for plugins hosted on WordPress.org
+        // load_plugin_textdomain() is deprecated since WordPress 4.6
     }
     
     private function includes() {
@@ -120,13 +121,13 @@ class AI_Product_Review_Generator {
         
         $default_settings = array(
             'openai_api_key' => '',
-            'openai_engine' => 'gpt-3.5-turbo',
-            'temperature' => 0.7,
+            'openai_engine' => 'gpt-4o-mini',
             'reviews_per_product' => 5,
             'review_length_mode' => 'mixed',
             'review_sentiments' => array('positive'),
             'sentiment_balance' => 'balanced',
-            'custom_prompt' => 'Write a realistic product review for {product_title}. Make it sound natural and authentic.',
+            'custom_prompt' => 'Write a realistic product review for {product_title}. The product description is {product_description}.
+The product price is {product_price}. Make it sound natural and authentic.',
             'custom_keywords' => '',
             'enable_logging' => 'yes'
         );
