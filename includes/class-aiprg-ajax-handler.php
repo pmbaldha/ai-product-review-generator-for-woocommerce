@@ -21,6 +21,7 @@ class AIPRG_Ajax_Handler {
         add_action('wp_ajax_aiprg_search_products', array($this, 'handle_search_products'));
         add_action('wp_ajax_aiprg_search_categories', array($this, 'handle_search_categories'));
         add_action('wp_ajax_aiprg_delete_review', array($this, 'handle_delete_review'));
+        add_action('wp_ajax_aiprg_delete_all_reviews', array($this, 'handle_delete_all_reviews'));
         
         // Also hook into WooCommerce's product search if it's not already available
         if (!has_action('wp_ajax_woocommerce_json_search_products_and_variations')) {
@@ -164,14 +165,11 @@ class AIPRG_Ajax_Handler {
             }
             
             check_ajax_referer('aiprg_generate_reviews', 'nonce');
-            
-            $product_ids = isset($_POST['product_ids']) ? array_map('intval', $_POST['product_ids']) : array();
+
             $use_scheduler = isset($_POST['use_scheduler']) ? filter_var(wp_unslash($_POST['use_scheduler']), FILTER_VALIDATE_BOOLEAN) : true;
-            
-            if (empty($product_ids)) {
-                $product_ids = $this->review_generator->get_selected_products();
-            }
-            
+			$use_scheduler = true;
+            $product_ids = $this->review_generator->get_selected_products();
+
             if (empty($product_ids)) {
                 wp_send_json_error(array(
                     'message' => esc_html__('No products selected for review generation.', 'ai-product-review-generator-for-woocommerce')
@@ -187,7 +185,7 @@ class AIPRG_Ajax_Handler {
                 'max_execution_time' => ini_get('max_execution_time')
             ));
             
-            if (!$use_scheduler || count($product_ids) <= 5) {
+            if (!$use_scheduler || count($product_ids) <= 2) {
                 set_transient('aiprg_generation_in_progress', true, HOUR_IN_SECONDS);
                 set_transient('aiprg_generation_total', count($product_ids), HOUR_IN_SECONDS);
                 set_transient('aiprg_generation_current', 0, HOUR_IN_SECONDS);
@@ -226,6 +224,9 @@ class AIPRG_Ajax_Handler {
                     ));
                     return;
                 }
+                
+                // Clear any stuck or corrupted actions before starting new batch
+                $this->action_scheduler->clear_all_scheduled_actions();
                 
                 $batch_id = $this->action_scheduler->schedule_batch_generation($product_ids);
                 
@@ -930,5 +931,81 @@ class AIPRG_Ajax_Handler {
         wp_cache_delete('aiprg_stats_today_reviews_' . current_time('Y-m-d'), 'aiprg_stats');
         wp_cache_delete('aiprg_stats_avg_rating', 'aiprg_stats');
         wp_cache_delete('aiprg_active_batches', 'aiprg_batches');
+    }
+    
+    public function handle_delete_all_reviews() {
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(esc_html__('Unauthorized', 'ai-product-review-generator-for-woocommerce'));
+        }
+        
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        
+        if (!wp_verify_nonce($nonce, 'aiprg_delete_all_reviews')) {
+            wp_send_json_error(array(
+                'message' => esc_html__('Security check failed.', 'ai-product-review-generator-for-woocommerce')
+            ));
+            return;
+        }
+        
+        global $wpdb;
+        
+        // Get all AI-generated review IDs
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Necessary for bulk deletion
+        $review_ids = $wpdb->get_col(
+            "SELECT comment_id FROM {$wpdb->commentmeta} 
+            WHERE meta_key = 'aiprg_generated' AND meta_value = '1'"
+        );
+        
+        if (empty($review_ids)) {
+            wp_send_json_success(array(
+                'message' => esc_html__('No AI-generated reviews found.', 'ai-product-review-generator-for-woocommerce'),
+                'deleted' => 0
+            ));
+            return;
+        }
+        
+        $deleted_count = 0;
+        $affected_products = array();
+        
+        // Delete each review
+        foreach ($review_ids as $review_id) {
+            $comment = get_comment($review_id);
+            if ($comment) {
+                $product_id = $comment->comment_post_ID;
+                if (!in_array($product_id, $affected_products)) {
+                    $affected_products[] = $product_id;
+                }
+                
+                // Force delete the review
+                if (wp_delete_comment($review_id, true)) {
+                    $deleted_count++;
+                }
+            }
+        }
+        
+        // Update ratings for all affected products
+        foreach ($affected_products as $product_id) {
+            $this->update_product_rating_after_deletion($product_id);
+        }
+        
+        // Clear all caches
+        $this->clear_review_caches();
+        
+        // Log the bulk deletion
+        $this->logger->log('All AI-generated reviews deleted', 'WARNING', array(
+            'deleted_count' => $deleted_count,
+            'affected_products' => count($affected_products),
+            'deleted_by' => wp_get_current_user()->user_login
+        ));
+        
+        wp_send_json_success(array(
+            'message' => sprintf(
+                /* translators: %d: number of deleted reviews */
+                esc_html__('Successfully deleted %d AI-generated reviews.', 'ai-product-review-generator-for-woocommerce'),
+                $deleted_count
+            ),
+            'deleted' => $deleted_count,
+            'affected_products' => count($affected_products)
+        ));
     }
 }

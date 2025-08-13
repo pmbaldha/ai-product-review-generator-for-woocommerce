@@ -39,7 +39,7 @@ class AIPRG_Admin {
         $active_tab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : 'dashboard';
         ?>
         <div class="wrap aiprg-main">
-            <h1><?php echo esc_html__('AI Product Review Generator for Woo', 'ai-product-review-generator-for-woocommerce'); ?></h1>
+            <h1><?php echo esc_html__('AI Product Review Generator', 'ai-product-review-generator-for-woocommerce'); ?></h1>
             
             <nav class="nav-tab-wrapper">
                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=product&page=aiprg-dashboard&tab=dashboard')); ?>" class="nav-tab <?php echo $active_tab == 'dashboard' ? 'nav-tab-active' : ''; ?>">
@@ -187,7 +187,19 @@ class AIPRG_Admin {
             return;
         }
         
-        echo '<table class="wp-list-table widefat fixed striped">';
+        // Add Delete All button if there are reviews
+        if ($total_reviews > 0) {
+            echo '<div class="aiprg-reviews-actions" style="margin-bottom: 15px;">';
+            echo '<button id="aiprg-delete-all-reviews" class="button button-secondary" data-nonce="' . esc_attr(wp_create_nonce('aiprg_delete_all_reviews')) . '">';
+            echo '<span class="dashicons dashicons-trash" style="vertical-align: text-bottom; margin-right: 4px;"></span>';
+            echo esc_html__('Delete All AI Reviews', 'ai-product-review-generator-for-woocommerce');
+            echo ' <span class="count">(' . esc_html($total_reviews) . ')</span>';
+            echo '</button>';
+            echo '<span id="aiprg-delete-all-status" style="margin-left: 10px;"></span>';
+            echo '</div>';
+        }
+        
+        echo '<table id="aiprg-reviews-table" class="wp-list-table widefat fixed striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Product', 'ai-product-review-generator-for-woocommerce') . '</th>';
         echo '<th>' . esc_html__('Reviewer', 'ai-product-review-generator-for-woocommerce') . '</th>';
@@ -667,7 +679,7 @@ class AIPRG_Admin {
             return;
         }
         
-        echo '<table class="wp-list-table widefat fixed striped">';
+        echo '<table id="aiprg-reviews-table" class="wp-list-table widefat fixed striped">';
         echo '<thead><tr>';
         echo '<th>' . esc_html__('Product', 'ai-product-review-generator-for-woocommerce') . '</th>';
         echo '<th>' . esc_html__('Reviewer', 'ai-product-review-generator-for-woocommerce') . '</th>';
@@ -749,7 +761,7 @@ class AIPRG_Admin {
         $tab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : 'dashboard';
         
         // Load scripts for settings tab
-        if ($tab === 'settings') {
+        if (in_array($tab, array('settings', 'reviews'))) {
             // Enqueue WooCommerce admin scripts and styles for product search
             wp_enqueue_script('selectWoo');
             wp_enqueue_script('wc-enhanced-select');

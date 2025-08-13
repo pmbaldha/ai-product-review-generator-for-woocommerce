@@ -10,6 +10,8 @@ class AIPRG_OpenAI {
     private $engine;
     private $logger;
     private $api_base_url;
+    private static $last_api_request_time = null;
+    private static $api_delay = 20; // 20 seconds delay between API requests
     
     public function __construct() {
         $this->api_key = get_option('aiprg_openai_api_key', '');
@@ -28,6 +30,9 @@ class AIPRG_OpenAI {
         $product_id = $product->get_id();
         
         $this->logger->log("Starting review generation for product: {$product_name} (ID: {$product_id})", 'INFO', $options);
+        
+        // Check if we need to wait before making the API request
+        $this->enforce_api_delay();
         
         // Build the full prompt for custom /responses endpoint
         // Using completions-style format with system instruction in prompt
@@ -48,6 +53,11 @@ class AIPRG_OpenAI {
         
         // Log API request
         $this->logger->log_api_request($endpoint, $request_body, $headers);
+        
+        // Update the last API request time right before making the request
+        self::$last_api_request_time = microtime(true);
+        // Store in transient for persistence across requests (valid for 1 hour)
+        set_transient('aiprg_last_api_request_time', self::$last_api_request_time, 3600);
         
         $response = wp_remote_post($endpoint, array(
             'headers' => $headers,
@@ -197,6 +207,48 @@ class AIPRG_OpenAI {
 
         $this->logger->log("Using custom /responses endpoint with model: {$model}", 'INFO');
         return $model;
+    }
+    
+    /**
+     * Enforce API delay to ensure at least 20 seconds between API requests
+     */
+    private function enforce_api_delay() {
+        // Try to get last request time from static variable or transient
+        if (self::$last_api_request_time === null) {
+            // Check if we have a stored last request time in transient
+            $stored_time = get_transient('aiprg_last_api_request_time');
+            if ($stored_time !== false) {
+                self::$last_api_request_time = floatval($stored_time);
+            }
+        }
+        
+        if (self::$last_api_request_time === null) {
+            // First request, no need to wait
+            return;
+        }
+        
+        $current_time = microtime(true);
+        $time_since_last_request = $current_time - self::$last_api_request_time;
+        
+        if ($time_since_last_request < self::$api_delay) {
+            $wait_time = self::$api_delay - $time_since_last_request;
+            $this->logger->log("Waiting {$wait_time} seconds before next API request", 'INFO', array(
+                'last_request_time' => self::$last_api_request_time,
+                'current_time' => $current_time,
+                'time_since_last' => $time_since_last_request,
+                'required_delay' => self::$api_delay
+            ));
+            
+            // Extend PHP execution time to handle the delay
+            $current_max_execution = ini_get('max_execution_time');
+            if ($current_max_execution > 0) {
+                // Only modify if not unlimited (0 means unlimited)
+                @set_time_limit($current_max_execution + ceil($wait_time) + 30);
+            }
+            
+            // Sleep for the remaining time to ensure 20-second gap
+            sleep(ceil($wait_time));
+        }
     }
     
     public function validate_api_key() {

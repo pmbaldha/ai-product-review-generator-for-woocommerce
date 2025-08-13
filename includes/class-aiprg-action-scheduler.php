@@ -13,9 +13,8 @@ class AIPRG_Action_Scheduler {
     const HOOK_PROCESS_BATCH = 'aiprg_process_review_batch';
     const HOOK_PROCESS_SINGLE = 'aiprg_process_single_product';
     const HOOK_PROCESS_REVIEW = 'aiprg_process_single_review';
-    const BATCH_SIZE = 5;
-    const PRODUCTS_PER_CHUNK = 5;
-    const REVIEWS_PER_BATCH = 2;
+    const PRODUCTS_PER_CHUNK = 1;
+    const REVIEWS_PER_BATCH = 1;
     
     private $logger;
     
@@ -39,7 +38,7 @@ class AIPRG_Action_Scheduler {
         $batch_id = $this->generate_batch_id();
         
         $default_settings = array(
-            'reviews_per_product' => intval(get_option('aiprg_reviews_per_product', 5)),
+            'reviews_per_product' => intval(get_option('aiprg_reviews_per_product', 1)),
             'sentiments' => get_option('aiprg_review_sentiments', array('positive')),
             'sentiment_balance' => get_option('aiprg_sentiment_balance', 'balanced'),
             'review_length_mode' => get_option('aiprg_review_length_mode', 'mixed'),
@@ -100,13 +99,33 @@ class AIPRG_Action_Scheduler {
                 );
             }
             
-            $delay += 10; // 10 seconds between chunks
+            $delay += 25; // 20 seconds between chunks
         }
         
         return $batch_id;
     }
     
     public function process_batch($args) {
+        // Handle case where $args might be passed as just the batch_id string
+        if (is_string($args)) {
+            // This should not happen in normal operation - log error and exit
+            $this->logger->log_error('process_batch received string instead of array - invalid Action Scheduler call', array(
+                'args_type' => gettype($args),
+                'args_value' => $args
+            ));
+            return;
+        }
+        
+        // Ensure $args is an array and has required keys
+        if (!is_array($args) || !isset($args['batch_id'], $args['chunk_index'], $args['product_ids'], $args['settings'])) {
+            $this->logger->log_error('process_batch received invalid arguments', array(
+                'args_type' => gettype($args),
+                'args_keys' => is_array($args) ? array_keys($args) : 'not_array',
+                'args' => $args
+            ));
+            return;
+        }
+        
         $batch_id = $args['batch_id'];
         $chunk_index = $args['chunk_index'];
         $product_ids = $args['product_ids'];
@@ -161,6 +180,25 @@ class AIPRG_Action_Scheduler {
     }
     
     public function process_single_product($args) {
+        // Handle case where $args might be passed as a string or improperly formatted
+        if (is_string($args)) {
+            $this->logger->log_error('process_single_product received string instead of array', array(
+                'args_type' => gettype($args),
+                'args_value' => $args
+            ));
+            return;
+        }
+        
+        // Ensure $args is an array and has required keys
+        if (!is_array($args) || !isset($args['batch_id'], $args['product_id'], $args['settings'])) {
+            $this->logger->log_error('process_single_product received invalid arguments', array(
+                'args_type' => gettype($args),
+                'args_keys' => is_array($args) ? array_keys($args) : 'not_array',
+                'args' => $args
+            ));
+            return;
+        }
+        
         $batch_id = $args['batch_id'];
         $product_id = $args['product_id'];
         $settings = $args['settings'];
@@ -225,13 +263,32 @@ class AIPRG_Action_Scheduler {
                 $this->process_review_batch($batch_id, $product_id, $product->get_name(), $settings, $i, $review_count);
             }
             
-            $delay += 5; // 5 seconds between review batches
+            $delay += 20; // 20 seconds between review batches
         }
         
         // Progress will be updated by process_single_review method
     }
     
     public function process_single_review($args) {
+        // Handle case where $args might be passed as a string or improperly formatted
+        if (is_string($args)) {
+            $this->logger->log_error('process_single_review received string instead of array', array(
+                'args_type' => gettype($args),
+                'args_value' => $args
+            ));
+            return;
+        }
+        
+        // Ensure $args is an array and has required keys
+        if (!is_array($args) || !isset($args['batch_id'], $args['product_id'], $args['product_name'], $args['settings'], $args['start_index'], $args['review_count'])) {
+            $this->logger->log_error('process_single_review received invalid arguments', array(
+                'args_type' => gettype($args),
+                'args_keys' => is_array($args) ? array_keys($args) : 'not_array',
+                'args' => $args
+            ));
+            return;
+        }
+        
         $batch_id = $args['batch_id'];
         $product_id = $args['product_id'];
         $product_name = $args['product_name'];
@@ -432,6 +489,58 @@ class AIPRG_Action_Scheduler {
             'batch_id' => $batch_id
         ));
         
+        return true;
+    }
+    
+    /**
+     * Clear all scheduled actions for this plugin
+     * Useful for clearing corrupted or stuck actions
+     */
+    public function clear_all_scheduled_actions() {
+        if (function_exists('as_unschedule_all_actions')) {
+            // Clear all actions for our hooks
+            as_unschedule_all_actions(self::HOOK_PROCESS_BATCH, array(), 'aiprg');
+            as_unschedule_all_actions(self::HOOK_PROCESS_SINGLE, array(), 'aiprg');
+            as_unschedule_all_actions(self::HOOK_PROCESS_REVIEW, array(), 'aiprg');
+            
+            // Also try to delete any pending actions from the database directly
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'actionscheduler_actions';
+            
+            if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name) {
+                // Delete all pending actions for our hooks
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "DELETE FROM $table_name 
+                         WHERE hook IN (%s, %s, %s) 
+                         AND status IN ('pending', 'in-progress')",
+                        self::HOOK_PROCESS_BATCH,
+                        self::HOOK_PROCESS_SINGLE,
+                        self::HOOK_PROCESS_REVIEW
+                    )
+                );
+            }
+            
+            $this->logger->log('Cleared all scheduled actions', 'INFO');
+            return true;
+        }
+        
+        // Fallback to WP Cron
+        $crons = _get_cron_array();
+        $cleared = 0;
+        
+        foreach ($crons as $timestamp => $cron) {
+            foreach ($cron as $hook => $dings) {
+                if (in_array($hook, array(self::HOOK_PROCESS_BATCH, self::HOOK_PROCESS_SINGLE, self::HOOK_PROCESS_REVIEW))) {
+                    foreach ($dings as $sig => $data) {
+                        wp_unschedule_event($timestamp, $hook, $data['args']);
+                        $cleared++;
+                    }
+                }
+            }
+        }
+        
+        $this->logger->log('Cleared scheduled actions via WP Cron', 'INFO', array('count' => $cleared));
         return true;
     }
     

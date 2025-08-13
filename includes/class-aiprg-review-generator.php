@@ -48,7 +48,7 @@ class AIPRG_Review_Generator {
             'product_ids' => $product_ids
         ));
         
-        $reviews_per_product = intval(get_option('aiprg_reviews_per_product', 5));
+        $reviews_per_product = intval(get_option('aiprg_reviews_per_product', 1));
         $sentiments = get_option('aiprg_review_sentiments', array('positive'));
         $sentiment_balance = get_option('aiprg_sentiment_balance', 'balanced');
         $review_length_mode = get_option('aiprg_review_length_mode', 'mixed');
@@ -92,12 +92,17 @@ class AIPRG_Review_Generator {
         }
         
         // Immediate processing (existing code)
+        // Extend execution time for immediate processing to handle API delays
+        $estimated_time = count($product_ids) * $reviews_per_product * 25; // 20s delay + 5s processing per review
+        @set_time_limit($estimated_time);
+        
         $this->logger->log('Review generation settings', 'INFO', array(
             'reviews_per_product' => $reviews_per_product,
             'sentiments' => $sentiments,
             'sentiment_balance' => $sentiment_balance,
             'review_length_mode' => $review_length_mode,
-            'date_range' => array('start' => $date_start, 'end' => $date_end)
+            'date_range' => array('start' => $date_start, 'end' => $date_end),
+            'estimated_time' => $estimated_time
         ));
         
         $results = array(

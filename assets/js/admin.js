@@ -424,7 +424,6 @@ jQuery(document).ready(function($) {
         var data = {
             action: 'aiprg_generate_reviews_scheduled',
             nonce: aiprg_ajax.nonce,
-            product_ids: selectedProducts,
             use_scheduler: true // Disable scheduler for now since Action Scheduler is not available
         };
         
@@ -457,11 +456,11 @@ jQuery(document).ready(function($) {
                 }
                 
                 // Refresh page after 3 seconds to show new reviews
-                setTimeout(function() {
+               /* setTimeout(function() {
                     if (confirm(aiprg_ajax.strings.reviews_generated_refresh)) {
                         location.reload();
                     }
-                }, 1000);
+                }, 1000);*/
                 
             } else {
                 $status.removeClass('success').addClass('error').html(
@@ -488,7 +487,7 @@ jQuery(document).ready(function($) {
         // Simulate progress updates
         var progressInterval = setInterval(function() {
             getGenerationProgress();
-        }, 3000);
+        }, 20000);
         
         // Clear interval after 60 seconds (timeout)
         setTimeout(function() {
@@ -848,7 +847,7 @@ jQuery(document).ready(function($) {
             }
         }
     });
-    
+
     // Handle review deletion
     $(document).on('click', '.aiprg-delete-review', function(e) {
         e.preventDefault();
@@ -910,6 +909,125 @@ jQuery(document).ready(function($) {
             
             // Show error message
             alert(aiprg_ajax.strings.error_deleting_review + error);
+        });
+    });
+    
+    // Handle delete all AI reviews
+    $(document).on('click', '#aiprg-delete-all-reviews', function(e) {
+        e.preventDefault();
+        
+        var $button = $(this);
+        var nonce = $button.data('nonce');
+        var reviewCount = parseInt($button.find('.count').text().replace(/[^0-9]/g, ''));
+        
+        // Confirm deletion with review count
+        var confirmMessage = aiprg_ajax.strings.delete_all_reviews_confirm || 
+            'Are you sure you want to delete all ' + reviewCount + ' AI-generated reviews? This action cannot be undone.';
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        // Double confirm for safety
+        var secondConfirm = aiprg_ajax.strings.delete_all_reviews_second_confirm || 
+            'This will permanently delete ALL AI-generated reviews. Are you absolutely sure?';
+        
+        if (!confirm(secondConfirm)) {
+            return;
+        }
+        
+        // Disable button and show loading state
+        var originalText = $button.html();
+        $button.prop('disabled', true)
+            .html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + 
+                  (aiprg_ajax.strings.deleting_all || 'Deleting all reviews...'));
+        
+        // Make AJAX request to delete all AI reviews
+        $.post(aiprg_ajax.ajax_url, {
+            action: 'aiprg_delete_all_reviews',
+            nonce: nonce
+        }, function(response) {
+            if (response.success) {
+                // Show success message
+                var $statusDiv = $('#aiprg_delete_status');
+                if ($statusDiv.length === 0) {
+                    $statusDiv = $('<div id="aiprg_delete_status" class="notice notice-success is-dismissible" style="margin-top: 10px;"><p></p></div>');
+                    $('.aiprg-reviews-actions').after($statusDiv);
+                }
+                
+                var successMessage = response.data.message || 
+                    'Successfully deleted ' + response.data.deleted_count + ' AI-generated reviews.';
+                $statusDiv.find('p').text(successMessage);
+                $statusDiv.fadeIn();
+                
+                // Remove the delete all button and actions div since no reviews are left
+                $('.aiprg-reviews-actions').fadeOut(400, function() {
+                    $(this).remove();
+                });
+                
+                // Clear the reviews table
+                $('#aiprg-reviews-table tbody').fadeOut(400, function() {
+                    $(this).html('<tr><td colspan="6">' + (aiprg_ajax.strings.no_reviews_found || 'No reviews found.') + '</td></tr>');
+                    $(this).fadeIn();
+                });
+                
+                // Update stats if visible
+                if (response.data.stats) {
+                    $('.aiprg-stat-value').each(function() {
+                        var $stat = $(this);
+                        if ($stat.text().indexOf('review') !== -1) {
+                            $stat.text('0');
+                        }
+                    });
+                }
+                
+                // Hide success message after 5 seconds
+                setTimeout(function() {
+                    $statusDiv.fadeOut();
+                }, 5000);
+                
+            } else {
+                // Re-enable button on error
+                $button.prop('disabled', false).html(originalText);
+                
+                // Show error message
+                var errorMsg = response.data ? response.data.message : 
+                    (aiprg_ajax.strings.failed_delete_all_reviews || 'Failed to delete reviews. Please try again.');
+                    
+                var $errorDiv = $('#aiprg_delete_status');
+                if ($errorDiv.length === 0) {
+                    $errorDiv = $('<div id="aiprg_delete_status" class="notice notice-error is-dismissible" style="margin-top: 10px;"><p></p></div>');
+                    $('.aiprg-reviews-actions').after($errorDiv);
+                }
+                $errorDiv.removeClass('notice-success').addClass('notice-error');
+                $errorDiv.find('p').text(errorMsg);
+                $errorDiv.fadeIn();
+                
+                // Hide error message after 5 seconds
+                setTimeout(function() {
+                    $errorDiv.fadeOut();
+                }, 5000);
+            }
+        }).fail(function(xhr, status, error) {
+            // Re-enable button on failure
+            $button.prop('disabled', false).html(originalText);
+            
+            // Show error message
+            var errorText = aiprg_ajax.strings.error_deleting_all_reviews || 'Error deleting reviews: ';
+            
+            var $errorDiv = $('#aiprg_delete_status');
+            if ($errorDiv.length === 0) {
+                $errorDiv = $('<div id="aiprg_delete_status" class="notice notice-error is-dismissible" style="margin-top: 10px;"><p></p></div>');
+                $('.aiprg-reviews-actions').after($errorDiv);
+            }
+            $errorDiv.removeClass('notice-success').addClass('notice-error');
+            $errorDiv.find('p').text(errorText + (error || 'Unknown error'));
+            $errorDiv.fadeIn();
+            
+            // Hide error message after 5 seconds
+            setTimeout(function() {
+                $errorDiv.fadeOut();
+            }, 5000);
         });
     });
 });

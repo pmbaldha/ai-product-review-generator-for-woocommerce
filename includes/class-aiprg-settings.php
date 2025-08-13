@@ -42,10 +42,10 @@ class AIPRG_Settings {
             'openai_engine' => array(
                 'name' => esc_html__('OpenAI Model', 'ai-product-review-generator-for-woocommerce'),
                 'type' => 'select',
-                'desc' => esc_html__('Using custom /responses endpoint - All models use gpt-3.5-turbo-instruct format.', 'ai-product-review-generator-for-woocommerce'),
+                'desc' => esc_html__('Using custom /responses endpoint.', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_openai_engine',
                 'options' => array(
-                    'gpt-4o-mini' => esc_html__('GPT-4o Mini (Recommended)', 'ai-product-review-generator-for-woocommerce'),
+                    'gpt-4o-mini' => esc_html__('GPT-4o Mini (Recommended for free OpenAI API)', 'ai-product-review-generator-for-woocommerce'),
                     'gpt-3.5-turbo' => esc_html__('GPT-3.5 Turbo Instruct', 'ai-product-review-generator-for-woocommerce'),
                     'gpt-4-turbo' => esc_html__('GPT-4 Turbo', 'ai-product-review-generator-for-woocommerce'),
                     'gpt-4o' => esc_html__('GPT-4o', 'ai-product-review-generator-for-woocommerce'),
@@ -62,10 +62,11 @@ class AIPRG_Settings {
                 'desc' => __('Specify how many reviews to generate for each product.', 'ai-product-review-generator-for-woocommerce'),
                 'id'   => 'aiprg_reviews_per_product',
                 'placeholder' => __('5', 'ai-product-review-generator-for-woocommerce'),
-                'default' => '5',
+                'default' => 1,
                 'custom_attributes' => array(
                     'min'  => '1',
-                    'max'  => '50'
+                    'max'  => '50',
+                    'step' => '1'
                 )
             ),
             'custom_prompt' => array(
