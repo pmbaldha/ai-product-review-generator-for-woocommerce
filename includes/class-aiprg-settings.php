@@ -6,10 +6,46 @@ if (!defined('ABSPATH')) {
 
 class AIPRG_Settings {
     
-    public function __construct() {
+    /**
+     * The single instance of the class
+     * 
+     * @var AIPRG_Settings
+     */
+    private static $instance = null;
+    
+    /**
+     * Private constructor to prevent direct instantiation
+     */
+    private function __construct() {
         // Removed WooCommerce tab registration - now handled in AIPRG_Admin
         add_action('wp_ajax_aiprg_validate_api_key', array($this, 'ajax_validate_api_key'));
         // WooCommerce already handles product search, no need to override
+    }
+    
+    /**
+     * Get the singleton instance of the class
+     * 
+     * @return AIPRG_Settings
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Prevent cloning of the instance
+     */
+    private function __clone() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
+    }
+    
+    /**
+     * Prevent unserializing of the instance
+     */
+    public function __wakeup() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
     }
     
     // Removed add_settings_tab and settings_tab methods - now handled in AIPRG_Admin

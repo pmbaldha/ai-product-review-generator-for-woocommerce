@@ -16,11 +16,52 @@ class AIPRG_Action_Scheduler {
     const PRODUCTS_PER_CHUNK = 1;
     const REVIEWS_PER_BATCH = 1;
     
+    /**
+     * The single instance of the class
+     * 
+     * @var AIPRG_Action_Scheduler
+     */
+    private static $instance = null;
+    
+    /**
+     * Logger instance
+     * 
+     * @var AIPRG_Logger
+     */
     private $logger;
     
-    public function __construct() {
+    /**
+     * Private constructor to prevent direct instantiation
+     */
+    private function __construct() {
         $this->logger = AIPRG_Logger::instance();
         $this->init_hooks();
+    }
+    
+    /**
+     * Get the singleton instance of the class
+     * 
+     * @return AIPRG_Action_Scheduler
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Prevent cloning of the instance
+     */
+    private function __clone() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
+    }
+    
+    /**
+     * Prevent unserializing of the instance
+     */
+    public function __wakeup() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
     }
     
     private function init_hooks() {
@@ -42,10 +83,8 @@ class AIPRG_Action_Scheduler {
             'sentiments' => get_option('aiprg_review_sentiments', array('positive')),
             'sentiment_balance' => get_option('aiprg_sentiment_balance', 'balanced'),
             'review_length_mode' => get_option('aiprg_review_length_mode', 'mixed'),
-            // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
-            'date_start' => get_option('aiprg_date_range_start', date('Y-m-d', strtotime('-30 days'))),
-            // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
-            'date_end' => get_option('aiprg_date_range_end', date('Y-m-d'))
+            'date_start' => get_option('aiprg_date_range_start', gmdate('Y-m-d', strtotime('-30 days'))),
+            'date_end' => get_option('aiprg_date_range_end', gmdate('Y-m-d'))
         );
         
         $settings = wp_parse_args($settings, $default_settings);
@@ -65,40 +104,26 @@ class AIPRG_Action_Scheduler {
             'started_at' => current_time('mysql'),
             'settings' => $settings
         ));
-        
-        $chunks = array_chunk($product_ids, self::PRODUCTS_PER_CHUNK);
-        $delay = 20;
+
+		$chunks = array_chunk($product_ids, self::PRODUCTS_PER_CHUNK);
+        $delay = 5;
         
         // Schedule chunks using WooCommerce Action Scheduler
         foreach ($chunks as $chunk_index => $chunk) {
-            if (function_exists('as_schedule_single_action')) {
-                as_schedule_single_action(
-                    time() + $delay,
-                    self::HOOK_PROCESS_BATCH,
-                    array(
-                        'batch_id' => $batch_id,
-                        'chunk_index' => $chunk_index,
-                        'product_ids' => $chunk,
-                        'settings' => $settings
-                    ),
-                    'aiprg'
-                );
-            } else {
-                // Fallback to direct processing if Action Scheduler not available
-                wp_schedule_single_event(
-                    time() + $delay,
-                    self::HOOK_PROCESS_BATCH,
-                    array(
-                        array(
-                            'batch_id' => $batch_id,
-                            'chunk_index' => $chunk_index,
-                            'product_ids' => $chunk,
-                            'settings' => $settings
-                        )
-                    )
-                );
-            }
-            
+            as_schedule_single_action(
+				time() + $delay,
+				self::HOOK_PROCESS_BATCH,
+				array(
+					[
+						'batch_id' => $batch_id,
+						'chunk_index' => $chunk_index,
+						'product_ids' => array_filter($chunk),
+						'settings' => $settings,
+					]
+				),
+				'aiprg',
+				true
+			);
             $delay += 25; // 20 seconds between chunks
         }
         
@@ -149,32 +174,20 @@ class AIPRG_Action_Scheduler {
         // Schedule individual product processing
         $delay = 20;
         foreach ($product_ids as $product_id) {
-            if (function_exists('as_schedule_single_action')) {
-                as_schedule_single_action(
-                    time() + $delay,
-                    self::HOOK_PROCESS_SINGLE,
-                    array(
-                        'batch_id' => $batch_id,
-                        'product_id' => $product_id,
-                        'settings' => $settings
-                    ),
-                    'aiprg'
-                );
-            } else {
-                // Fallback to WP Cron
-                wp_schedule_single_event(
-                    time() + $delay,
-                    self::HOOK_PROCESS_SINGLE,
-                    array(
-                        array(
-                            'batch_id' => $batch_id,
-                            'product_id' => $product_id,
-                            'settings' => $settings
-                        )
-                    )
-                );
-            }
-            
+			as_schedule_single_action(
+				time() + $delay,
+				self::HOOK_PROCESS_SINGLE,
+				array(
+					[
+						'batch_id' => $batch_id,
+						'product_id' => $product_id,
+						'settings' => $settings
+					]
+				),
+				'aiprg',
+				true
+			);
+
             $delay += 3; // 3 seconds between products
         }
     }
@@ -231,37 +244,28 @@ class AIPRG_Action_Scheduler {
             'product_name' => $product->get_name()
         ));
         
-        $review_generator = new AIPRG_Review_Generator();
-        $openai = new AIPRG_OpenAI();
-        
-        $reviews_generated = 0;
-        $reviews_failed = 0;
-        
         // Schedule individual reviews in smaller batches
-        $reviews_to_generate = $settings['reviews_per_product'];
+        $reviews_to_generate = intval($settings['reviews_per_product']);
         $delay = 20;
-        
+
         for ($i = 0; $i < $reviews_to_generate; $i += self::REVIEWS_PER_BATCH) {
             $review_count = min(self::REVIEWS_PER_BATCH, $reviews_to_generate - $i);
-            
-            if (function_exists('as_schedule_single_action')) {
-                as_schedule_single_action(
-                    time() + $delay,
-                    self::HOOK_PROCESS_REVIEW,
-                    array(
-                        'batch_id' => $batch_id,
-                        'product_id' => $product_id,
-                        'product_name' => $product->get_name(),
-                        'settings' => $settings,
-                        'start_index' => $i,
-                        'review_count' => $review_count
-                    ),
-                    'aiprg'
-                );
-            } else {
-                // Direct processing as fallback
-                $this->process_review_batch($batch_id, $product_id, $product->get_name(), $settings, $i, $review_count);
-            }
+			as_schedule_single_action(
+				time() + $delay,
+				self::HOOK_PROCESS_REVIEW,
+				array(
+					[
+						'batch_id' => $batch_id,
+						'product_id' => $product_id,
+						'product_name' => $product->get_name(),
+						'settings' => $settings,
+						'start_index' => $i,
+						'review_count' => $review_count,
+					]
+				),
+				'aiprg',
+				true
+			);
             
             $delay += 20; // 20 seconds between review batches
         }
@@ -296,10 +300,7 @@ class AIPRG_Action_Scheduler {
         $start_index = $args['start_index'];
         $review_count = $args['review_count'];
         
-        $this->process_review_batch($batch_id, $product_id, $product_name, $settings, $start_index, $review_count);
-    }
-    
-    private function process_review_batch($batch_id, $product_id, $product_name, $settings, $start_index, $review_count) {
+        // Check if batch is cancelled
         $batch_status = get_option('aiprg_current_batch_' . $batch_id);
         
         if (!$batch_status || $batch_status['status'] === 'cancelled') {
@@ -310,6 +311,7 @@ class AIPRG_Action_Scheduler {
             return;
         }
         
+        // Get the product
         $product = wc_get_product($product_id);
         if (!$product) {
             $this->logger->log_error("Product not found for review generation", array(
@@ -320,13 +322,16 @@ class AIPRG_Action_Scheduler {
             return;
         }
         
-        $openai = new AIPRG_OpenAI();
+        // Initialize OpenAI and counters
+        $openai = AIPRG_OpenAI::instance();
         $reviews_generated = 0;
         $reviews_failed = 0;
         
+        // Generate reviews
         for ($i = 0; $i < $review_count; $i++) {
             $review_number = $start_index + $i + 1;
             
+            // Generate review parameters
             $sentiment = $this->get_random_sentiment($settings['sentiments'], $settings['sentiment_balance']);
             $rating = $this->get_rating_from_sentiment($sentiment);
             $length = $this->get_review_length($settings['review_length_mode']);
@@ -337,6 +342,7 @@ class AIPRG_Action_Scheduler {
                 'length' => $length
             );
             
+            // Generate review content
             $review_content = $openai->generate_review($product, $options);
             
             if (is_wp_error($review_content)) {
@@ -350,10 +356,12 @@ class AIPRG_Action_Scheduler {
                 continue;
             }
             
+            // Generate reviewer details
             $reviewer_name = $this->generate_reviewer_name();
             $reviewer_email = $this->generate_reviewer_email($reviewer_name);
             $review_date = $this->get_random_date($settings['date_start'], $settings['date_end']);
             
+            // Prepare comment data
             $comment_data = array(
                 'comment_post_ID' => $product_id,
                 'comment_author' => $reviewer_name,
@@ -369,9 +377,11 @@ class AIPRG_Action_Scheduler {
                 'comment_approved' => 1
             );
             
+            // Insert the review
             $comment_id = wp_insert_comment($comment_data);
             
             if ($comment_id) {
+                // Add review metadata
                 update_comment_meta($comment_id, 'rating', $rating);
                 update_comment_meta($comment_id, 'verified', 0);
                 update_comment_meta($comment_id, 'aiprg_generated', 1);
@@ -405,8 +415,10 @@ class AIPRG_Action_Scheduler {
             }
         }
         
+        // Update batch progress
         $this->update_batch_progress($batch_id, $reviews_generated > 0, $reviews_generated, $reviews_failed);
         
+        // Log completion
         $this->logger->log('Completed review batch', 'INFO', array(
             'batch_id' => $batch_id,
             'product_id' => $product_id,
@@ -463,28 +475,11 @@ class AIPRG_Action_Scheduler {
         $batch_status['cancelled_at'] = current_time('mysql');
         update_option('aiprg_current_batch_' . $batch_id, $batch_status);
         
-        // Cancel scheduled actions if Action Scheduler is available
-        if (function_exists('as_unschedule_all_actions')) {
-            // Cancel all batch processing actions
-            as_unschedule_all_actions(self::HOOK_PROCESS_BATCH, array(), 'aiprg');
-            as_unschedule_all_actions(self::HOOK_PROCESS_SINGLE, array(), 'aiprg');
-            as_unschedule_all_actions(self::HOOK_PROCESS_REVIEW, array(), 'aiprg');
-        } else {
-            // Fallback to WP Cron
-            $crons = _get_cron_array();
-            foreach ($crons as $timestamp => $cron) {
-                foreach ($cron as $hook => $dings) {
-                    if (in_array($hook, array(self::HOOK_PROCESS_BATCH, self::HOOK_PROCESS_SINGLE, self::HOOK_PROCESS_REVIEW))) {
-                        foreach ($dings as $sig => $data) {
-                            if (isset($data['args'][0]['batch_id']) && $data['args'][0]['batch_id'] === $batch_id) {
-                                wp_unschedule_event($timestamp, $hook, $data['args']);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
+        // Cancel all batch processing actions
+		as_unschedule_all_actions(self::HOOK_PROCESS_BATCH, array(), 'aiprg');
+		as_unschedule_all_actions(self::HOOK_PROCESS_SINGLE, array(), 'aiprg');
+		as_unschedule_all_actions(self::HOOK_PROCESS_REVIEW, array(), 'aiprg');
+
         $this->logger->log('Batch cancelled', 'INFO', array(
             'batch_id' => $batch_id
         ));
@@ -497,132 +492,50 @@ class AIPRG_Action_Scheduler {
      * Useful for clearing corrupted or stuck actions
      */
     public function clear_all_scheduled_actions() {
-        if (function_exists('as_unschedule_all_actions')) {
-            // Clear all actions for our hooks
-            as_unschedule_all_actions(self::HOOK_PROCESS_BATCH, array(), 'aiprg');
-            as_unschedule_all_actions(self::HOOK_PROCESS_SINGLE, array(), 'aiprg');
-            as_unschedule_all_actions(self::HOOK_PROCESS_REVIEW, array(), 'aiprg');
-            
-            // Also try to delete any pending actions from the database directly
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'actionscheduler_actions';
-            
-            if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name) {
-                // Delete all pending actions for our hooks
-                $wpdb->query(
-                    $wpdb->prepare(
-                        "DELETE FROM $table_name 
-                         WHERE hook IN (%s, %s, %s) 
-                         AND status IN ('pending', 'in-progress')",
-                        self::HOOK_PROCESS_BATCH,
-                        self::HOOK_PROCESS_SINGLE,
-                        self::HOOK_PROCESS_REVIEW
-                    )
-                );
-            }
-            
-            $this->logger->log('Cleared all scheduled actions', 'INFO');
-            return true;
-        }
-        
-        // Fallback to WP Cron
-        $crons = _get_cron_array();
-        $cleared = 0;
-        
-        foreach ($crons as $timestamp => $cron) {
-            foreach ($cron as $hook => $dings) {
-                if (in_array($hook, array(self::HOOK_PROCESS_BATCH, self::HOOK_PROCESS_SINGLE, self::HOOK_PROCESS_REVIEW))) {
-                    foreach ($dings as $sig => $data) {
-                        wp_unschedule_event($timestamp, $hook, $data['args']);
-                        $cleared++;
-                    }
-                }
-            }
-        }
-        
-        $this->logger->log('Cleared scheduled actions via WP Cron', 'INFO', array('count' => $cleared));
+		// Clear all actions for our hooks
+		as_unschedule_all_actions(self::HOOK_PROCESS_BATCH, array(), 'aiprg');
+		as_unschedule_all_actions(self::HOOK_PROCESS_SINGLE, array(), 'aiprg');
+		as_unschedule_all_actions(self::HOOK_PROCESS_REVIEW, array(), 'aiprg');
+
+		// Also try to delete any pending actions from the database directly
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'actionscheduler_actions';
+		
+		// Check if the table exists using cached result
+		$cache_key = 'aiprg_as_table_exists';
+		$table_exists = wp_cache_get($cache_key, 'aiprg');
+		
+		if (false === $table_exists) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Required for checking table existence
+			$table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+			wp_cache_set($cache_key, $table_exists, 'aiprg', 3600); // Cache for 1 hour
+		}
+		
+		if ($table_exists == $table_name) {
+			// Delete all pending actions for our hooks
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query required for Action Scheduler table
+			$wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM `{$wpdb->prefix}actionscheduler_actions` WHERE hook IN (%s, %s, %s) AND status IN ('pending', 'in-progress')",
+					self::HOOK_PROCESS_BATCH,
+					self::HOOK_PROCESS_SINGLE,
+					self::HOOK_PROCESS_REVIEW
+				)
+			);
+			
+			// Clear the cache after modifying the table
+			wp_cache_delete($cache_key, 'aiprg');
+		}
+
+		$this->logger->log('Cleared all scheduled actions', 'INFO');
+
         return true;
     }
     
     public function get_batch_status($batch_id) {
         return get_option('aiprg_current_batch_' . $batch_id);
     }
-    
-    public function get_active_batches() {
-        global $wpdb;
-        
-        $cache_key = 'aiprg_active_batches';
-        $results = wp_cache_get($cache_key, 'aiprg_batches');
-        
-        if (false === $results) {
-            $option_name_pattern = 'aiprg_current_batch_%';
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Caching implemented
-            $results = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT option_name, option_value 
-                     FROM {$wpdb->options} 
-                     WHERE option_name LIKE %s",
-                    $option_name_pattern
-                )
-            );
-            wp_cache_set($cache_key, $results, 'aiprg_batches', 60);
-        }
-        
-        $active_batches = array();
-        
-        foreach ($results as $result) {
-            $batch_data = maybe_unserialize($result->option_value);
-            if ($batch_data && $batch_data['status'] === 'processing') {
-                $batch_id = str_replace('aiprg_current_batch_', '', $result->option_name);
-                $active_batches[$batch_id] = $batch_data;
-            }
-        }
-        
-        return $active_batches;
-    }
-    
-    public function cleanup_old_batches($days = 7) {
-        global $wpdb;
-        
-        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
-        $cutoff_date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
-        $option_name_pattern = 'aiprg_current_batch_%';
-        
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time cleanup operation, no caching needed
-        $results = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT option_name, option_value 
-                 FROM {$wpdb->options} 
-                 WHERE option_name LIKE %s",
-                $option_name_pattern
-            )
-        );
-        
-        $deleted_count = 0;
-        
-        foreach ($results as $result) {
-            $batch_data = maybe_unserialize($result->option_value);
-            
-            if ($batch_data && 
-                ($batch_data['status'] === 'completed' || $batch_data['status'] === 'cancelled') &&
-                isset($batch_data['started_at']) && 
-                $batch_data['started_at'] < $cutoff_date) {
-                
-                delete_option($result->option_name);
-                $deleted_count++;
-            }
-        }
-        
-        if ($deleted_count > 0) {
-            $this->logger->log('Cleaned up old batches', 'INFO', array(
-                'deleted_count' => $deleted_count,
-                'cutoff_date' => $cutoff_date
-            ));
-        }
-        
-        return $deleted_count;
-    }
-    
+
     private function generate_batch_id() {
         return 'batch_' . time() . '_' . wp_generate_password(8, false);
     }
@@ -719,7 +632,7 @@ class AIPRG_Action_Scheduler {
     private function generate_reviewer_name() {
         // Try to use the method from the main review generator
         try {
-            $review_generator = new AIPRG_Review_Generator();
+            $review_generator = AIPRG_Review_Generator::instance();
             $reflection = new ReflectionClass($review_generator);
             $method = $reflection->getMethod('generate_reviewer_name');
             $method->setAccessible(true);
@@ -751,8 +664,8 @@ class AIPRG_Action_Scheduler {
         
         $random_timestamp = wp_rand($start_timestamp, $end_timestamp);
         
-        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- Using date() intentionally for local timezone
-        return date('Y-m-d H:i:s', $random_timestamp);
+        // Generate date in site's timezone
+        return wp_date('Y-m-d H:i:s', $random_timestamp);
     }
     
     private function update_product_rating($product_id) {

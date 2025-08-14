@@ -424,7 +424,7 @@ jQuery(document).ready(function($) {
         var data = {
             action: 'aiprg_generate_reviews_scheduled',
             nonce: aiprg_ajax.nonce,
-            use_scheduler: true // Disable scheduler for now since Action Scheduler is not available
+            use_scheduler: true
         };
         
         // Make AJAX request

@@ -6,6 +6,13 @@ if (!defined('ABSPATH')) {
 
 class AIPRG_OpenAI {
     
+    /**
+     * The single instance of the class
+     * 
+     * @var AIPRG_OpenAI
+     */
+    private static $instance = null;
+    
     private $api_key;
     private $engine;
     private $logger;
@@ -13,11 +20,40 @@ class AIPRG_OpenAI {
     private static $last_api_request_time = null;
     private static $api_delay = 20; // 20 seconds delay between API requests
     
-    public function __construct() {
+    /**
+     * Private constructor to prevent direct instantiation
+     */
+    private function __construct() {
         $this->api_key = get_option('aiprg_openai_api_key', '');
         $this->engine = get_option('aiprg_openai_engine', 'gpt-3.5-turbo');
         $this->api_base_url = 'https://api.openai.com/v1'; // Static API base URL
         $this->logger = AIPRG_Logger::instance();
+    }
+    
+    /**
+     * Get the singleton instance of the class
+     * 
+     * @return AIPRG_OpenAI
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Prevent cloning of the instance
+     */
+    private function __clone() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
+    }
+    
+    /**
+     * Prevent unserializing of the instance
+     */
+    public function __wakeup() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
     }
     
     public function generate_review($product, $options = array()) {
@@ -36,9 +72,9 @@ class AIPRG_OpenAI {
         
         // Build the full prompt for custom /responses endpoint
         // Using completions-style format with system instruction in prompt
-        $system_instruction = 'Write an authentic product review that sounds natural and human-like. Avoid overly promotional language.';
+        $system_instruction = 'Write an authentic and unique product review that sounds natural and human-like. Avoid overly promotional language.';
         $user_prompt = $this->build_prompt($product, $options);
-        $full_prompt = $system_instruction . "\n\n" . $user_prompt . "\n\nDon't add ⭐, * and — in response. \n\nReview:";
+        $full_prompt = $system_instruction . "\n\n" . $user_prompt . "\n\nDon't add '⭐', '*', '—' and '—' in response. \n\nReview:";
         
         $request_body = array(
             'model' => $this->get_model_name(),
@@ -243,6 +279,7 @@ class AIPRG_OpenAI {
             $current_max_execution = ini_get('max_execution_time');
             if ($current_max_execution > 0) {
                 // Only modify if not unlimited (0 means unlimited)
+                // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Required to prevent timeout during rate limit wait
                 @set_time_limit($current_max_execution + ceil($wait_time) + 30);
             }
             

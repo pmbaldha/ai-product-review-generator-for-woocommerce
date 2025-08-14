@@ -6,14 +6,50 @@ if (!defined('ABSPATH')) {
 
 class AIPRG_Review_Generator {
     
+    /**
+     * The single instance of the class
+     * 
+     * @var AIPRG_Review_Generator
+     */
+    private static $instance = null;
+    
     private $openai;
     private $logger;
     private $action_scheduler;
     
-    public function __construct() {
-        $this->openai = new AIPRG_OpenAI();
+    /**
+     * Private constructor to prevent direct instantiation
+     */
+    private function __construct() {
+        $this->openai = AIPRG_OpenAI::instance();
         $this->logger = AIPRG_Logger::instance();
         $this->action_scheduler = null; // Lazy load when needed
+    }
+    
+    /**
+     * Get the singleton instance of the class
+     * 
+     * @return AIPRG_Review_Generator
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Prevent cloning of the instance
+     */
+    private function __clone() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
+    }
+    
+    /**
+     * Prevent unserializing of the instance
+     */
+    public function __wakeup() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
     }
     
     /**
@@ -21,7 +57,7 @@ class AIPRG_Review_Generator {
      */
     private function get_action_scheduler() {
         if ($this->action_scheduler === null) {
-            $this->action_scheduler = new AIPRG_Action_Scheduler();
+            $this->action_scheduler = AIPRG_Action_Scheduler::instance();
         }
         return $this->action_scheduler;
     }
@@ -94,6 +130,7 @@ class AIPRG_Review_Generator {
         // Immediate processing (existing code)
         // Extend execution time for immediate processing to handle API delays
         $estimated_time = count($product_ids) * $reviews_per_product * 25; // 20s delay + 5s processing per review
+        // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Required for long-running review generation process
         @set_time_limit($estimated_time);
         
         $this->logger->log('Review generation settings', 'INFO', array(

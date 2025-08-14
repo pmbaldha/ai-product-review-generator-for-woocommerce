@@ -12,15 +12,15 @@
  * Requires PHP: 7.2
  * WC requires at least: 9.3
  * WC tested up to: 9.3
- * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * License: GPL v3 or later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AIPRG_VERSION', '1.0.1');
+define('AIPRG_VERSION', '1.0.0');
 define('AIPRG_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('AIPRG_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('AIPRG_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -99,12 +99,12 @@ class AI_Product_Review_Generator {
     }
     
     private function init_hooks() {
-        new AIPRG_Settings();
-        new AIPRG_OpenAI();
-        new AIPRG_Review_Generator();
-        new AIPRG_Action_Scheduler();
-        new AIPRG_Ajax_Handler();
-        new AIPRG_Admin();
+        AIPRG_Settings::instance();
+        AIPRG_OpenAI::instance();
+        AIPRG_Review_Generator::instance();
+        AIPRG_Action_Scheduler::instance();
+        AIPRG_Ajax_Handler::instance();
+        AIPRG_Admin::instance();
     }
     
     public function declare_compatibility() {

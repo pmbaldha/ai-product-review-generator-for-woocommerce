@@ -6,19 +6,55 @@ if (!defined('ABSPATH')) {
 
 class AIPRG_Admin {
     
-    public function __construct() {
+    /**
+     * The single instance of the class
+     * 
+     * @var AIPRG_Admin
+     */
+    private static $instance = null;
+    
+    /**
+     * Private constructor to prevent direct instantiation
+     */
+    private function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_filter('plugin_action_links_' . AIPRG_PLUGIN_BASENAME, array($this, 'add_action_links'));
         add_action('admin_notices', array($this, 'admin_notices'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
     }
     
+    /**
+     * Get the singleton instance of the class
+     * 
+     * @return AIPRG_Admin
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Prevent cloning of the instance
+     */
+    private function __clone() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
+    }
+    
+    /**
+     * Prevent unserializing of the instance
+     */
+    public function __wakeup() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
+    }
+    
     public function add_admin_menu() {
         // Add main submenu under Products
         add_submenu_page(
             'edit.php?post_type=product',
-            __('AI Product Review Generator for Woo', 'ai-product-review-generator-for-woocommerce'),
-            __('AI Review Generator', 'ai-product-review-generator-for-woocommerce'),
+            esc_html__('AI Product Review Generator for Woo', 'ai-product-review-generator-for-woocommerce'),
+			esc_html__('AI Review Generator', 'ai-product-review-generator-for-woocommerce'),
             'manage_woocommerce',
             'aiprg-dashboard',
             array($this, 'render_main_page')
@@ -118,7 +154,7 @@ class AIPRG_Admin {
     
     private function render_settings_tab() {
         // Include the settings instance
-        $settings = new AIPRG_Settings();
+        $settings = AIPRG_Settings::instance();
 
         ?>
         <form method="post" action="">
@@ -550,19 +586,33 @@ class AIPRG_Admin {
                             foreach ($logs as $log_line) {
                                 $formatted_line = $log_line;
                                 
-                                // Color code based on log level
-                                if (strpos($log_line, '[ERROR]') !== false) {
-                                    echo '<span style="color: #d54e21; font-weight: bold;">' . esc_html($formatted_line) . '</span>';
-                                } elseif (strpos($log_line, '[WARNING]') !== false) {
-                                    echo '<span style="color: #f0b849;">' . esc_html($formatted_line) . '</span>';
-                                } elseif (strpos($log_line, '[SUCCESS]') !== false) {
-                                    echo '<span style="color: #46b450;">' . esc_html($formatted_line) . '</span>';
-                                } elseif (strpos($log_line, '[API_REQUEST]') !== false) {
-                                    echo '<span style="color: #0073aa;">' . esc_html($formatted_line) . '</span>';
-                                } elseif (strpos($log_line, '[API_RESPONSE]') !== false) {
-                                    echo '<span style="color: #826eb4;">' . esc_html($formatted_line) . '</span>';
+                                // Color code based on log level with emoji support
+                                if (strpos($log_line, '❌ ERROR') !== false || strpos($log_line, '[ERROR]') !== false) {
+                                    echo '<span style="color: #d54e21; font-weight: bold;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '🔥 CRITICAL') !== false || strpos($log_line, '[CRITICAL]') !== false) {
+                                    echo '<span style="color: #a00; font-weight: bold;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '⚠️  WARNING') !== false || strpos($log_line, '[WARNING]') !== false) {
+                                    echo '<span style="color: #f0b849;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '✅ SUCCESS') !== false || strpos($log_line, '[SUCCESS]') !== false) {
+                                    echo '<span style="color: #46b450; font-weight: bold;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '📤 API REQUEST') !== false || strpos($log_line, '[API_REQUEST]') !== false) {
+                                    echo '<span style="color: #0073aa;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '📥 API RESPONSE') !== false || strpos($log_line, '[API_RESPONSE]') !== false) {
+                                    echo '<span style="color: #826eb4;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '📝 REVIEW GEN') !== false || strpos($log_line, '[REVIEW_GEN]') !== false) {
+                                    echo '<span style="color: #00a0d2;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, 'ℹ️  INFO') !== false || strpos($log_line, '[INFO]') !== false) {
+                                    echo '<span style="color: #555;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '🔍 DEBUG') !== false || strpos($log_line, '[DEBUG]') !== false) {
+                                    echo '<span style="color: #999;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '════') !== false || strpos($log_line, '────') !== false || strpos($log_line, '····') !== false || strpos($log_line, '━━━━') !== false) {
+                                    echo '<span style="color: #ccc;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '║') !== false || strpos($log_line, '╔') !== false || strpos($log_line, '╚') !== false) {
+                                    echo '<span style="color: #0073aa; font-weight: bold;">' . esc_html($formatted_line) . '</span>' . "\n";
+                                } elseif (strpos($log_line, '┌─') !== false || strpos($log_line, '├─') !== false || strpos($log_line, '└─') !== false) {
+                                    echo '<span style="color: #666;">' . esc_html($formatted_line) . '</span>' . "\n";
                                 } else {
-                                    echo esc_html($formatted_line);
+                                    echo esc_html($formatted_line) . "\n";
                                 }
                             }
                         ?></pre>

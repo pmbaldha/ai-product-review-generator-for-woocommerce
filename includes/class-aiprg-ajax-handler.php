@@ -6,11 +6,21 @@ if (!defined('ABSPATH')) {
 
 class AIPRG_Ajax_Handler {
     
+    /**
+     * The single instance of the class
+     * 
+     * @var AIPRG_Ajax_Handler
+     */
+    private static $instance = null;
+    
     private $review_generator;
     private $action_scheduler;
     private $logger;
     
-    public function __construct() {
+    /**
+     * Private constructor to prevent direct instantiation
+     */
+    private function __construct() {
         add_action('wp_ajax_aiprg_generate_reviews', array($this, 'handle_generate_reviews'));
         add_action('wp_ajax_aiprg_generate_reviews_scheduled', array($this, 'handle_generate_reviews_scheduled'));
         add_action('wp_ajax_aiprg_validate_api_key', array($this, 'handle_validate_api_key'));
@@ -28,9 +38,35 @@ class AIPRG_Ajax_Handler {
             add_action('wp_ajax_woocommerce_json_search_products_and_variations', array($this, 'handle_search_products'));
         }
         
-        $this->review_generator = new AIPRG_Review_Generator();
-        $this->action_scheduler = new AIPRG_Action_Scheduler();
+        $this->review_generator = AIPRG_Review_Generator::instance();
+        $this->action_scheduler = AIPRG_Action_Scheduler::instance();
         $this->logger = AIPRG_Logger::instance();
+    }
+    
+    /**
+     * Get the singleton instance of the class
+     * 
+     * @return AIPRG_Ajax_Handler
+     */
+    public static function instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Prevent cloning of the instance
+     */
+    private function __clone() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Cloning is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
+    }
+    
+    /**
+     * Prevent unserializing of the instance
+     */
+    public function __wakeup() {
+        _doing_it_wrong(__FUNCTION__, esc_html__('Unserializing is forbidden.', 'ai-product-review-generator-for-woocommerce'), '1.0.0');
     }
     
     public function handle_generate_reviews() {
@@ -110,7 +146,7 @@ class AIPRG_Ajax_Handler {
         update_option('aiprg_openai_api_key', $api_key, false);
         $logger->log('API key saved to database', 'INFO');
         
-        $openai = new AIPRG_OpenAI();
+        $openai = AIPRG_OpenAI::instance();
         $is_valid = $openai->validate_api_key();
         
         if ($is_valid) {
@@ -167,7 +203,6 @@ class AIPRG_Ajax_Handler {
             check_ajax_referer('aiprg_generate_reviews', 'nonce');
 
             $use_scheduler = isset($_POST['use_scheduler']) ? filter_var(wp_unslash($_POST['use_scheduler']), FILTER_VALIDATE_BOOLEAN) : true;
-			$use_scheduler = true;
             $product_ids = $this->review_generator->get_selected_products();
 
             if (empty($product_ids)) {
@@ -185,71 +220,43 @@ class AIPRG_Ajax_Handler {
                 'max_execution_time' => ini_get('max_execution_time')
             ));
             
-            if (!$use_scheduler || count($product_ids) <= 2) {
-                set_transient('aiprg_generation_in_progress', true, HOUR_IN_SECONDS);
-                set_transient('aiprg_generation_total', count($product_ids), HOUR_IN_SECONDS);
-                set_transient('aiprg_generation_current', 0, HOUR_IN_SECONDS);
-                
-                $results = $this->review_generator->generate_reviews_for_products($product_ids);
-                
-                delete_transient('aiprg_generation_in_progress');
-                delete_transient('aiprg_generation_total');
-                delete_transient('aiprg_generation_current');
-                
-                if (is_wp_error($results)) {
-                    wp_send_json_error(array(
-                        'message' => $results->get_error_message()
-                    ));
-                    return;
-                }
-                
-                $message = sprintf(
-                    /* translators: %1$d: number of successful reviews, %2$d: number of failed reviews */
-                    esc_html__('Review generation completed! Successfully generated %1$d reviews, %2$d failed.', 'ai-product-review-generator-for-woocommerce'),
-                    $results['success'],
-                    $results['failed']
-                );
-                
-                wp_send_json_success(array(
-                    'message' => $message,
-                    'results' => $results,
-                    'method' => 'direct'
-                ));
-            } else {
-                // Check if action scheduler is properly initialized
-                if (!$this->action_scheduler) {
-                    $this->logger->log_error('Action Scheduler not initialized');
-                    wp_send_json_error(array(
-                        'message' => esc_html__('Failed to initialize scheduler. Please try again.', 'ai-product-review-generator-for-woocommerce')
-                    ));
-                    return;
-                }
-                
-                // Clear any stuck or corrupted actions before starting new batch
-                $this->action_scheduler->clear_all_scheduled_actions();
-                
-                $batch_id = $this->action_scheduler->schedule_batch_generation($product_ids);
-                
-                if (!$batch_id) {
-                    wp_send_json_error(array(
-                        'message' => esc_html__('Failed to schedule batch generation.', 'ai-product-review-generator-for-woocommerce')
-                    ));
-                    return;
-                }
-                
-                $message = sprintf(
-                    /* translators: %d: number of products being processed */
-					esc_html__('Review generation scheduled for %d products. Processing will continue in the background.', 'ai-product-review-generator-for-woocommerce'),
-                    count($product_ids)
-                );
-                
-                wp_send_json_success(array(
-                    'message' => $message,
-                    'batch_id' => $batch_id,
-                    'total_products' => count($product_ids),
-                    'method' => 'scheduled'
-                ));
-            }
+
+			// Check if action scheduler is properly initialized
+			if (!$this->action_scheduler) {
+				$this->logger->log_error('Action Scheduler not initialized');
+				wp_send_json_error(array(
+					'message' => esc_html__('Failed to initialize scheduler. Please try again.', 'ai-product-review-generator-for-woocommerce')
+				));
+				return;
+			}
+
+			// Clear any stuck or corrupted actions before starting new batch
+			$this->action_scheduler->clear_all_scheduled_actions();
+
+			$batch_id = $this->action_scheduler->schedule_batch_generation($product_ids);
+
+			if (!$batch_id) {
+				wp_send_json_error(array(
+					'message' => esc_html__('Failed to schedule batch generation.', 'ai-product-review-generator-for-woocommerce')
+				));
+				return;
+			}
+
+			$count_product_ids = count($product_ids);
+			$approx_generation_time_in_sec = intval(get_option('aiprg_reviews_per_product', 1)) * $count_product_ids * 25 * 2;
+			$message = sprintf(
+				/* translators: %1$d: number of products being processed, %2$s: time to wait */
+				esc_html__('Review generation scheduled for %1$d products. Processing will continue in the background. Please check after %2$s.', 'ai-product-review-generator-for-woocommerce'),
+				$count_product_ids,
+				human_time_diff(time(), time() + $approx_generation_time_in_sec)
+			);
+
+			wp_send_json_success(array(
+				'message' => $message,
+				'batch_id' => $batch_id,
+				'total_products' => count($product_ids),
+				'method' => 'scheduled'
+			));
         } catch (Exception $e) {
             // Log the error
             $this->logger->log_error('Fatal error in review generation', array(
@@ -422,11 +429,15 @@ class AIPRG_Ajax_Handler {
         $include = isset($_REQUEST['include']) ? array_map('intval', (array) $_REQUEST['include']) : array();
         $limit = isset($_REQUEST['limit']) ? intval($_REQUEST['limit']) : 30;
         
-        $logger->log("Product search initiated - Term: '{$term}', Limit: {$limit}", 'INFO');
+        // Format log message based on whether term is empty
+        if (empty($term)) {
+            $logger->log("Product search initiated - fetching recent products (Limit: {$limit})", 'INFO');
+        } else {
+            $logger->log("Product search initiated - searching for: \"{$term}\" (Limit: {$limit})", 'INFO');
+        }
         
         // If empty term, get recent products
         if (empty($term) && empty($include)) {
-            $logger->log('Empty search term - fetching recent products', 'INFO');
             
             // Get recent products
             $args = array(
@@ -669,7 +680,12 @@ class AIPRG_Ajax_Handler {
         $exclude = isset($_REQUEST['exclude']) ? array_map('intval', (array) $_REQUEST['exclude']) : array();
         $include = isset($_REQUEST['include']) ? array_map('intval', (array) $_REQUEST['include']) : array();
         
-        $logger->log("Category search initiated - Term: '{$term}'", 'INFO');
+        // Format log message based on whether term is empty
+        if (empty($term)) {
+            $logger->log('Category search initiated - fetching all categories', 'INFO');
+        } else {
+            $logger->log("Category search initiated - searching for: \"{$term}\"", 'INFO');
+        }
         
         $results = array();
         
@@ -950,7 +966,7 @@ class AIPRG_Ajax_Handler {
         global $wpdb;
         
         // Get all AI-generated review IDs
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Necessary for bulk deletion
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Necessary for bulk deletion of all AI reviews
         $review_ids = $wpdb->get_col(
             "SELECT comment_id FROM {$wpdb->commentmeta} 
             WHERE meta_key = 'aiprg_generated' AND meta_value = '1'"
