@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <!-- Main gradient with accessible WooCommerce purple colors -->
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7F54B3;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#9B5C8F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A16696;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Star gradient - bright gold for filled stars -->
+    <linearGradient id="starGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FFC107;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFA000;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Star shadow for depth -->
+    <filter id="starShadow">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    
+    <!-- AI gradient with better contrast -->
+    <linearGradient id="aiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow effect -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background with enhanced gradient overlay -->
+  <rect width="256" height="256" fill="#7F54B3" rx="40"/>
+  <rect width="256" height="256" fill="url(#mainGradient)" opacity="0.4" rx="40"/>
+  <!-- Top shine effect -->
+  <ellipse cx="128" cy="50" rx="100" ry="40" fill="#ffffff" opacity="0.1"/>
+  
+  <!-- Decorative circuit pattern background -->
+  <g opacity="0.15" fill="none" stroke="#ffffff" stroke-width="1">
+    <path d="M20 40 L60 40 L70 50 L100 50"/>
+    <path d="M156 50 L186 50 L196 40 L236 40"/>
+    <path d="M20 216 L60 216 L70 206 L100 206"/>
+    <path d="M156 206 L186 206 L196 216 L236 216"/>
+    <circle cx="20" cy="40" r="3" fill="#ffffff"/>
+    <circle cx="236" cy="40" r="3" fill="#ffffff"/>
+    <circle cx="20" cy="216" r="3" fill="#ffffff"/>
+    <circle cx="236" cy="216" r="3" fill="#ffffff"/>
+    <circle cx="70" cy="50" r="2" fill="#ffffff"/>
+    <circle cx="186" cy="50" r="2" fill="#ffffff"/>
+    <circle cx="70" cy="206" r="2" fill="#ffffff"/>
+    <circle cx="186" cy="206" r="2" fill="#ffffff"/>
+  </g>
+  
+  <!-- Central AI Brain Network -->
+  <g transform="translate(128, 85)" filter="url(#glow)">
+    <!-- Outer hexagon -->
+    <path d="M 0,-40 L 35,-20 L 35,20 L 0,40 L -35,20 L -35,-20 Z" 
+          fill="none" stroke="#ffffff" stroke-width="3" opacity="0.9"/>
+    
+    <!-- Neural nodes -->
+    <circle cx="0" cy="-40" r="6" fill="#ffffff"/>
+    <circle cx="35" cy="-20" r="6" fill="#ffffff"/>
+    <circle cx="35" cy="20" r="6" fill="#ffffff"/>
+    <circle cx="0" cy="40" r="6" fill="#ffffff"/>
+    <circle cx="-35" cy="20" r="6" fill="#ffffff"/>
+    <circle cx="-35" cy="-20" r="6" fill="#ffffff"/>
+    <circle cx="0" cy="0" r="8" fill="#ffffff"/>
+    
+    <!-- Neural connections -->
+    <path d="M 0,0 L 0,-40 M 0,0 L 35,-20 M 0,0 L 35,20 M 0,0 L 0,40 M 0,0 L -35,20 M 0,0 L -35,-20" 
+          stroke="#ffffff" stroke-width="2" opacity="0.6"/>
+  </g>
+  
+  <!-- AI Text Badge -->
+  <g transform="translate(128, 85)">
+    <text x="0" y="5" font-family="Arial, sans-serif" font-size="20" font-weight="bold" 
+          text-anchor="middle" fill="#ffffff" filter="url(#shadow)">AI</text>
+  </g>
+  
+  <!-- 5-Star Rating Display - Prominently filled stars -->
+  <g transform="translate(128, 155)">
+    <!-- Background panel for stars -->
+    <rect x="-70" y="-18" width="140" height="36" fill="#ffffff" opacity="0.15" rx="18"/>
+    <rect x="-68" y="-16" width="136" height="32" fill="#000000" opacity="0.1" rx="16"/>
+    
+    <!-- Define prominently filled star -->
+    <g id="star">
+      <path d="M 0,-15 L 5,-5 L 15,-2 L 7.5,8 L 10,18 L 0,12 L -10,18 L -7.5,8 L -15,-2 L -5,-5 Z" 
+            fill="url(#starGradient)" stroke="#FFA000" stroke-width="1" filter="url(#starShadow)"/>
+      <!-- Inner highlight for 3D effect -->
+      <path d="M 0,-12 L 3,-5 L 8,-3 L 4,2 L 5,7 L 0,4 L -5,7 L -4,2 L -8,-3 L -3,-5 Z" 
+            fill="#FFED4E" opacity="0.4"/>
+    </g>
+    
+    <!-- 5 complete prominently filled stars -->
+    <use href="#star" x="-50" y="0"/>
+    <use href="#star" x="-25" y="0"/>
+    <use href="#star" x="0" y="0"/>
+    <use href="#star" x="25" y="0"/>
+    <use href="#star" x="50" y="0"/>
+  </g>
+  
+  <!-- Review Text Visualization - Premium UI -->
+  <g transform="translate(128, 195)">
+    <!-- Text background panel -->
+    <rect x="-80" y="-3" width="160" height="40" fill="#000000" opacity="0.2" rx="8"/>
+    <!-- Review lines -->
+    <rect x="-75" y="2" width="150" height="6" fill="#ffffff" rx="3"/>
+    <rect x="-70" y="13" width="140" height="8" fill="#ffffff" rx="4" opacity="0.9"/>
+    <rect x="-65" y="26" width="130" height="8" fill="#ffffff" rx="4" opacity="0.8"/>
+  </g>
+  
+  <!-- WooCommerce Badge - Premium design -->
+  <g transform="translate(205, 205)">
+    <!-- Outer glow -->
+    <circle cx="0" cy="0" r="28" fill="#ffffff" opacity="0.3"/>
+    <circle cx="0" cy="0" r="25" fill="#ffffff" filter="url(#shadow)"/>
+    <circle cx="0" cy="0" r="23" fill="#7F54B3"/>
+    <!-- Inner gradient for depth -->
+    <circle cx="0" cy="0" r="21" fill="url(#mainGradient)" opacity="0.5"/>
+    <text x="0" y="7" font-family="Arial, sans-serif" font-size="18" font-weight="900" 
+          text-anchor="middle" fill="#ffffff">WC</text>
+  </g>
+  
+  <!-- Sparkle effects for visual appeal -->
+  <g fill="#ffffff">
+    <circle cx="45" cy="45" r="2" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="211" cy="45" r="2" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="45" cy="128" r="1.5" opacity="0.5">
+      <animate attributeName="opacity" values="0.5;0.9;0.5" dur="2.5s" begin="1s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="211" cy="128" r="1.5" opacity="0.5">
+      <animate attributeName="opacity" values="0.5;0.9;0.5" dur="2.5s" begin="1.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>

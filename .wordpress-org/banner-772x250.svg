@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 772 250">
+  <defs>
+    <!-- Background gradient with accessible WooCommerce purple -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7F54B3;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#9B5C8F;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#A16696;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#9B5C8F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7F54B3;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Overlay gradient -->
+    <linearGradient id="overlayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0.3" />
+    </linearGradient>
+    
+    <!-- Star gradient - bright gold for filled stars -->
+    <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FFC107;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFB300;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Text gradient -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow filter -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Drop shadow -->
+    <filter id="dropShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background with WooCommerce purple and gradient overlay -->
+  <rect width="772" height="250" fill="#7F54B3"/>
+  <rect width="772" height="250" fill="url(#bgGradient)" opacity="0.2"/>
+  
+  <!-- Overlay for depth -->
+  <rect width="772" height="250" fill="url(#overlayGradient)"/>
+  
+  <!-- Circuit pattern background decoration (scaled) -->
+  <g opacity="0.1" fill="none" stroke="#ffffff" stroke-width="1">
+    <!-- Left side circuits -->
+    <path d="M25 50 L75 50 L85 60 L125 60"/>
+    <path d="M25 190 L75 190 L85 180 L125 180"/>
+    <circle cx="25" cy="50" r="3" fill="#ffffff"/>
+    <circle cx="125" cy="60" r="3" fill="#ffffff"/>
+    <circle cx="25" cy="190" r="3" fill="#ffffff"/>
+    <circle cx="125" cy="180" r="3" fill="#ffffff"/>
+    
+    <!-- Right side circuits -->
+    <path d="M647 50 L697 50 L707 60 L747 60"/>
+    <path d="M647 190 L697 190 L707 180 L747 180"/>
+    <circle cx="647" cy="50" r="3" fill="#ffffff"/>
+    <circle cx="747" cy="60" r="3" fill="#ffffff"/>
+    <circle cx="647" cy="190" r="3" fill="#ffffff"/>
+    <circle cx="747" cy="180" r="3" fill="#ffffff"/>
+  </g>
+  
+  <!-- AI Neural Network Visual (left side - scaled for smaller banner) -->
+  <g transform="translate(35, 125)" opacity="0.7" filter="url(#glow)">
+    <!-- Hexagon network (scaled down) -->
+    <g transform="scale(0.4)">
+      <path d="M 0,-80 L 70,-40 L 70,40 L 0,80 L -70,40 L -70,-40 Z" 
+            fill="none" stroke="#ffffff" stroke-width="4"/>
+      
+      <!-- Neural nodes -->
+      <circle cx="0" cy="-80" r="10" fill="#ffffff"/>
+      <circle cx="70" cy="-40" r="10" fill="#ffffff"/>
+      <circle cx="70" cy="40" r="10" fill="#ffffff"/>
+      <circle cx="0" cy="80" r="10" fill="#ffffff"/>
+      <circle cx="-70" cy="40" r="10" fill="#ffffff"/>
+      <circle cx="-70" cy="-40" r="10" fill="#ffffff"/>
+      <circle cx="0" cy="0" r="15" fill="#ffffff"/>
+      
+      <!-- Connections -->
+      <path d="M 0,0 L 0,-80 M 0,0 L 70,-40 M 0,0 L 70,40 M 0,0 L 0,80 M 0,0 L -70,40 M 0,0 L -70,-40" 
+            stroke="#ffffff" stroke-width="3" opacity="0.5"/>
+    </g>
+  </g>
+  
+  <!-- Main Title (scaled for smaller banner) -->
+  <g transform="translate(386, 100)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="38" font-weight="bold" 
+          text-anchor="middle" fill="#ffffff" filter="url(#dropShadow)">
+      AI Product Review Generator
+    </text>
+    <text x="0" y="32" font-family="Arial, sans-serif" font-size="18" font-weight="normal" 
+          text-anchor="middle" fill="#ffffff" opacity="0.95">
+      for WooCommerce
+    </text>
+  </g>
+  
+  <!-- 5-Star Rating Visual - Enhanced filled stars -->
+  <g transform="translate(386, 160)">
+    <!-- Background panel for stars -->
+    <rect x="-65" y="-15" width="130" height="30" fill="#ffffff" opacity="0.1" rx="15"/>
+    
+    <!-- Define enhanced filled star -->
+    <g id="bannerStar">
+      <path d="M 0,-12 L 4,-4 L 12,-1 L 5,6 L 7,14 L 0,9 L -7,14 L -5,6 L -12,-1 L -4,-4 Z" 
+            fill="url(#starGrad)" stroke="#FFB300" stroke-width="0.5" filter="url(#dropShadow)"/>
+    </g>
+    
+    <!-- 5 complete filled stars -->
+    <use href="#bannerStar" x="-48" y="0"/>
+    <use href="#bannerStar" x="-24" y="0"/>
+    <use href="#bannerStar" x="0" y="0"/>
+    <use href="#bannerStar" x="24" y="0"/>
+    <use href="#bannerStar" x="48" y="0"/>
+  </g>
+  
+  <!-- Feature text (scaled) -->
+  <g transform="translate(386, 200)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="14" font-weight="normal" 
+          text-anchor="middle" fill="#ffffff" opacity="1">
+      Generate Authentic Customer Reviews with AI Technology
+    </text>
+  </g>
+  
+  <!-- Review visualization (right side - scaled for smaller banner) -->
+  <g transform="translate(730, 125)" opacity="0.6">
+    <!-- Review card (scaled down) -->
+    <g transform="scale(0.4)">
+      <rect x="-80" y="-80" width="160" height="160" fill="#ffffff" rx="10" opacity="0.95"/>
+      
+      <!-- Review lines -->
+      <rect x="-60" y="-50" width="120" height="8" fill="#7F54B3" rx="4"/>
+      <rect x="-60" y="-30" width="100" height="8" fill="#9B5C8F" rx="4" opacity="0.9"/>
+      <rect x="-60" y="-10" width="80" height="8" fill="#A16696" rx="4" opacity="0.8"/>
+      
+      <!-- Mini stars - enhanced filled -->
+      <g transform="translate(0, 20)">
+        <path d="M -30,0 L -26,-6 L -20,-6 L -24,-2 L -22,4 L -30,-1 L -38,4 L -36,-2 L -40,-6 L -34,-6 Z" fill="#FFD700" stroke="#FFB300" stroke-width="0.3"/>
+        <path d="M -15,0 L -11,-6 L -5,-6 L -9,-2 L -7,4 L -15,-1 L -23,4 L -21,-2 L -25,-6 L -19,-6 Z" fill="#FFD700" stroke="#FFB300" stroke-width="0.3"/>
+        <path d="M 0,0 L 4,-6 L 10,-6 L 6,-2 L 8,4 L 0,-1 L -8,4 L -6,-2 L -10,-6 L -4,-6 Z" fill="#FFD700" stroke="#FFB300" stroke-width="0.3"/>
+        <path d="M 15,0 L 19,-6 L 25,-6 L 21,-2 L 23,4 L 15,-1 L 7,4 L 9,-2 L 5,-6 L 11,-6 Z" fill="#FFD700" stroke="#FFB300" stroke-width="0.3"/>
+        <path d="M 30,0 L 34,-6 L 40,-6 L 36,-2 L 38,4 L 30,-1 L 22,4 L 24,-2 L 20,-6 L 26,-6 Z" fill="#FFD700" stroke="#FFB300" stroke-width="0.3"/>
+      </g>
+      
+      <!-- Review text lines -->
+      <rect x="-60" y="40" width="120" height="4" fill="#94a3b8" rx="2"/>
+      <rect x="-60" y="50" width="100" height="4" fill="#94a3b8" rx="2" opacity="0.7"/>
+      <rect x="-60" y="60" width="80" height="4" fill="#94a3b8" rx="2" opacity="0.5"/>
+    </g>
+  </g>
+  
+  <!-- Decorative elements -->
+  <g fill="#ffffff">
+    <!-- Sparkles - adjusted for smaller banner -->
+    <circle cx="25" cy="100" r="2" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="747" cy="100" r="2" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="150" cy="175" r="1.5" opacity="0.5">
+      <animate attributeName="opacity" values="0.5;0.9;0.5" dur="2.5s" begin="1s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="622" cy="175" r="1.5" opacity="0.5">
+      <animate attributeName="opacity" values="0.5;0.9;0.5" dur="2.5s" begin="1.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  
+  <!-- WooCommerce indicator (scaled) -->
+  <g transform="translate(725, 225)" opacity="0.8">
+    <circle cx="0" cy="0" r="15" fill="#ffffff" opacity="0.9"/>
+    <text x="0" y="4" font-family="Arial, sans-serif" font-size="11" font-weight="bold" 
+          text-anchor="middle" fill="#7F54B3">WC</text>
+  </g>
+</svg>

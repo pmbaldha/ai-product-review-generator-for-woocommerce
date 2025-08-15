@@ -25,7 +25,7 @@ define('AIPRG_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('AIPRG_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('AIPRG_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
-class AI_Product_Review_Generator {
+class AIPRG_Product_Review_Generator {
     
     private static $instance = null;
     
@@ -144,4 +144,4 @@ The product price is {product_price}. Make it sound natural and authentic.',
     }
 }
 
-AI_Product_Review_Generator::get_instance();
+AIPRG_Product_Review_Generator::get_instance();
